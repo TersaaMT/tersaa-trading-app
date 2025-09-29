@@ -1,0 +1,2515 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TersaaMt</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
+    <script type="module" src="js/firebase.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Canvas Strategies Styles (injected) -->
+    <style>
+      .canvas-container { background: rgba(0,0,0,0.3); border-radius: 15px; padding: 10px; margin: 20px 0; overflow: hidden; }
+      #strategyCanvas { width: 100%; height: 500px; border-radius: 10px; cursor: crosshair; display: block; background:#0a0e27; }
+      .chart-controls { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; align-items: center; }
+      .chart-controls select, .chart-controls button { padding: 10px 15px; border-radius: 8px; border: none; background: rgba(79, 172, 254, 0.2); color: #fff; cursor: pointer; font-size: 14px; }
+      .chart-info-bar { display: flex; justify-content: space-between; margin: 10px 0; font-size: 12px; color: #b8c5d1; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+      .signal-detail-box { background: rgba(79, 172, 254, 0.1); border-left: 4px solid #4facfe; padding: 15px; margin: 15px 0; border-radius: 8px; }
+      .signal-badge { display:inline-block; padding:4px 8px; border-radius:8px; font-weight:700; margin-bottom:8px; }
+      .signal-badge.signal-buy { background: rgba(0,200,81,.15); color:#00c851; }
+      .signal-badge.signal-sell { background: rgba(239,83,80,.15); color:#ef5350; }
+      .signal-badge.signal-neutral { background: rgba(184,197,209,.15); color:#b8c5d1; }
+      .floating-back-btn { position: sticky; top: 10px; }
+    </style>
+
+</head>
+<body>
+    <div class="header">
+        <div class="logo">TersaaMt</div>
+        <div class="header-right">
+            <button class="invite-btn" onclick="inviteFriend()" title="Пригласить друга">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="9" cy="7" r="4" fill="currentColor"/>
+                    <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M21 21v-2a4 4 0 0 0-3-3.85" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <circle cx="18" cy="9" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <line x1="14" y1="14" x2="20" y2="14" stroke="currentColor" stroke-width="2"/>
+                    <line x1="17" y1="11" x2="17" y2="17" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </button>
+            <button class="invite-btn" onclick="showProfile()" title="Профиль" style="margin-right: 10px;">
+                👤
+            </button>
+            <button class="settings-btn" onclick="toggleSettingsDropdown()">⚙️</button>
+        </div>
+        
+        <div class="settings-dropdown" id="settingsDropdown">
+            <!-- Языки -->
+            <div class="settings-section">
+                <div class="settings-title">
+                    🔤 Язык
+                </div>
+                <div class="settings-option" onclick="setLanguage('ru')">
+                    <span style="margin-right: 10px;">🇷🇺</span> Русский
+                </div>
+                <div class="settings-option" onclick="setLanguage('en')">
+                    <span style="margin-right: 10px;">🇬🇧</span> English
+                </div>
+                <div class="settings-option" onclick="setLanguage('uz')">
+                    <span style="margin-right: 10px;">🇺🇿</span> O'zbek
+                </div>
+                <div class="settings-option" onclick="setLanguage('ja')">
+                    <span style="margin-right: 10px;">🇯🇵</span> Japanese
+                </div>
+            </div>
+
+            <!-- Тип графика -->
+            <div class="settings-section">
+                <div class="settings-title">
+                    📉 Тип графика
+                </div>
+                <div class="settings-option" onclick="setChartType('candles')">
+                    <span style="margin-right: 10px;">🕯️</span> Японские свечи
+                </div>
+                <div class="settings-option" onclick="setChartType('bars')">
+                    <span style="margin-right: 10px;">📊</span> Бары
+                </div>
+            </div>
+
+            <!-- Промокод -->
+            <div class="settings-section">
+                <div class="settings-title">
+                    🎁 Промокод
+                </div>
+                <input type="text" class="promo-input" id="promoInput" placeholder="Введите промокод">
+                <button class="promo-btn" onclick="activatePromo()">Активировать</button>
+            </div>
+
+            <!-- FAQ -->
+            <div class="settings-section">
+                <div class="settings-title">
+                    ❓ FAQ
+                </div>
+                <div class="settings-option" onclick="showFAQ()">
+                    <span style="margin-right: 10px;">📋</span> Часто задаваемые вопросы
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Плавающая кнопка "Назад" -->
+    <button class="floating-back-btn" id="floatingBackBtn" onclick="goBack()">
+        ←
+    </button>
+
+    <!-- Экран авторизации -->
+    <div id="authScreen" class="auth-screen">
+        <!-- Анимированный фон с частицами -->
+        <div id="particles-js"></div>
+        
+        <h1 class="auth-title">Добро пожаловать</h1>
+        <form id="authForm" style="position: relative; z-index: 10;">
+            <div class="form-group">
+                <label class="form-label">Имя</label>
+                <input type="text" class="form-input" id="firstName" placeholder="Введите имя" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Фамилия</label>
+                <input type="text" class="form-input" id="lastName" placeholder="Введите фамилию" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Год рождения</label>
+                <input type="number" class="form-input" id="birthYear" placeholder="1990" min="1950" max="2010" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Опыт в трейдинге</label>
+                <select class="form-select" id="experience" required>
+                    <option value="">Выберите опыт</option>
+                    <option value="beginner">Новичок (0-6 месяцев)</option>
+                    <option value="intermediate">Средний (6 месяцев - 2 года)</option>
+                    <option value="advanced">Продвинутый (2-5 лет)</option>
+                    <option value="expert">Эксперт (5+ лет)</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Продолжить</button>
+        </form>
+    </div>
+
+<!-- Страница с анимацией -->
+<div id="lessonsPage" class="page active">
+  <div class="section" style="position:relative; height: 100vh; overflow:hidden;">
+    <canvas id="dragonCanvas"></canvas>
+  </div>
+</div>
+
+<!-- Подключаем анимацию -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="js/dragon-animation.js"></script>
+
+
+
+                <!-- Криптовалютный тикер с реальными данными -->
+                <div class="crypto-ticker">
+                    <div class="crypto-ticker-content">
+                        <div class="crypto-item">
+                            <div class="crypto-icon" style="background: linear-gradient(45deg, #f7931a, #ffb74d);">₿</div>
+                            <span class="crypto-symbol">BTC</span>
+                            <span class="crypto-price" id="btcPrice">$0</span>
+                            <span class="crypto-change" id="btcChange">0%</span>
+                        </div>
+                        <div class="crypto-item">
+                            <div class="crypto-icon" style="background: linear-gradient(45deg, #627eea, #8fa4f3);">Ξ</div>
+                            <span class="crypto-symbol">ETH</span>
+                            <span class="crypto-price" id="ethPrice">$0</span>
+                            <span class="crypto-change" id="ethChange">0%</span>
+                        </div>
+                        <div class="crypto-item">
+                            <div class="crypto-icon" style="background: linear-gradient(45deg, #26a17b, #4caf50);">₮</div>
+                            <span class="crypto-symbol">USDT</span>
+                            <span class="crypto-price">$1.00</span>
+                            <span class="crypto-change">+0.01%</span>
+                        </div>
+                        <div class="crypto-item">
+                            <div class="crypto-icon" style="background: linear-gradient(45deg, #23292f, #4a5568);">⊗</div>
+                            <span class="crypto-symbol">XRP</span>
+                            <span class="crypto-price" id="xrpPrice">$0</span>
+                            <span class="crypto-change" id="xrpChange">0%</span>
+                        </div>
+                        <div class="crypto-item">
+                            <div class="crypto-icon" style="background: linear-gradient(45deg, #f3ba2f, #fdd835);">B</div>
+                            <span class="crypto-symbol">BNB</span>
+                            <span class="crypto-price" id="bnbPrice">$0</span>
+                            <span class="crypto-change" id="bnbChange">0%</span>
+                        </div>
+                        <div class="crypto-item">
+                            <div class="crypto-icon" style="background: linear-gradient(45deg, #9945ff, #14f195);">◎</div>
+                            <span class="crypto-symbol">SOL</span>
+                            <span class="crypto-price" id="solPrice">$0</span>
+                            <span class="crypto-change" id="solChange">0%</span>
+                        </div>
+                        <div class="crypto-item">
+                            <div class="crypto-icon" style="background: linear-gradient(45deg, #0033ad, #3f51b5);">₳</div>
+                            <span class="crypto-symbol">ADA</span>
+                            <span class="crypto-price" id="adaPrice">$0</span>
+                            <span class="crypto-change" id="adaChange">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Видео уроки перенесены под котировки -->
+                <div class="video-lessons-section" onclick="showVideos()">
+                    <h2 class="video-lessons-title">📚 Видео уроки</h2>
+                    
+                    <div style="text-align: center; padding: 40px 20px; color: #b8c5d1; cursor: pointer;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">📚</div>
+                        <p style="font-size: 18px; line-height: 1.6;">
+                            Скоро тут будут обучающие видеоуроки.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Страница Стратегии -->
+            <div id="strategiesPage" class="page">
+                <!-- Селектор монет -->
+                <div class="coin-selector">
+                    <button class="coin-btn active" onclick="selectCoin('BTCUSDT')" data-coin="BTCUSDT">
+                        <div class="crypto-icon" style="background: linear-gradient(45deg, #f7931a, #ffb74d); width: 16px; height: 16px; font-size: 8px;">₿</div>
+                        BTC
+                    </button>
+                    <button class="coin-btn" onclick="selectCoin('ETHUSDT')" data-coin="ETHUSDT">
+                        <div class="crypto-icon" style="background: linear-gradient(45deg, #627eea, #8fa4f3); width: 16px; height: 16px; font-size: 8px;">Ξ</div>
+                        ETH
+                    </button>
+                    <button class="coin-btn" onclick="selectCoin('BNBUSDT')" data-coin="BNBUSDT">
+                        <div class="crypto-icon" style="background: linear-gradient(45deg, #f3ba2f, #fdd835); width: 16px; height: 16px; font-size: 8px;">B</div>
+                        BNB
+                    </button>
+                    <button class="coin-btn" onclick="selectCoin('SOLUSDT')" data-coin="SOLUSDT">
+                        <div class="crypto-icon" style="background: linear-gradient(45deg, #9945ff, #14f195); width: 16px; height: 16px; font-size: 8px;">◎</div>
+                        SOL
+                    </button>
+                    <button class="coin-btn" onclick="selectCoin('XRPUSDT')" data-coin="XRPUSDT">
+                        <div class="crypto-icon" style="background: linear-gradient(45deg, #23292f, #4a5568); width: 16px; height: 16px; font-size: 8px;">⊗</div>
+                        XRP
+                    </button>
+                    <button class="coin-btn" onclick="selectCoin('ADAUSDT')" data-coin="ADAUSDT">
+                        <div class="crypto-icon" style="background: linear-gradient(45deg, #0033ad, #3f51b5); width: 16px; height: 16px; font-size: 8px;">₳</div>
+                        ADA
+                    </button>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">📈 Торговые стратегии</h2>
+                    
+                    <div id="mainChart" style="height: 500px; border-radius: 15px; overflow: hidden; margin: 20px 0;"></div>
+                    
+                    <!-- LIVE Сигналы -->
+                    <div class="section">
+                        <h3 style="color: #00c851; margin-bottom: 15px;">🔴 LIVE Сигналы</h3>
+                        <div id="liveSignalsContainer" class="live-signals-container">
+                            <div style="color: #b8c5d1; text-align: center; padding: 20px;">Инициализация системы сигналов...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Стратегии -->
+                    <div style="margin: 20px; margin-bottom: 25px; cursor: pointer;" onclick="showStrategy('ma14')">
+                        <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(0, 200, 81, 0.3) 20%, rgba(0, 200, 81, 0.8) 50%, rgba(0, 200, 81, 0.3) 80%, transparent 100%); margin-bottom: 10px;"></div>
+                        <div style="text-align: center; font-size: 16px; font-weight: 600; color: #00c851; margin: 8px 0;">MA14</div>
+                        <div class="signal-indicator signal-neutral" id="ma14Signal">Анализ...</div>
+                        <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(0, 200, 81, 0.3) 20%, rgba(0, 200, 81, 0.8) 50%, rgba(0, 200, 81, 0.3) 80%, transparent 100%); margin-top: 10px;"></div>
+                    </div>
+                    
+                    <div style="margin: 20px; margin-bottom: 25px; cursor: pointer;" onclick="showStrategy('trendline')">
+                        <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255, 107, 53, 0.3) 20%, rgba(255, 107, 53, 0.8) 50%, rgba(255, 107, 53, 0.3) 80%, transparent 100%); margin-bottom: 10px;"></div>
+                        <div style="text-align: center; font-size: 16px; font-weight: 600; color: #ff6b35; margin: 8px 0;">Пробой трендовой линии</div>
+                        <div class="signal-indicator signal-neutral" id="trendlineSignal">Анализ...</div>
+                        <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255, 107, 53, 0.3) 20%, rgba(255, 107, 53, 0.8) 50%, rgba(255, 107, 53, 0.3) 80%, transparent 100%); margin-top: 10px;"></div>
+                    </div>
+                    
+                    <div style="margin: 20px; margin-bottom: 25px; cursor: pointer;" onclick="showStrategy('channel')">
+                        <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(156, 39, 176, 0.3) 20%, rgba(156, 39, 176, 0.8) 50%, rgba(156, 39, 176, 0.3) 80%, transparent 100%); margin-bottom: 10px;"></div>
+                        <div style="text-align: center; font-size: 16px; font-weight: 600; color: #9c27b0; margin: 8px 0;">Трендовый канал</div>
+                        <div class="signal-indicator signal-neutral" id="channelSignal">Анализ...</div>
+                        <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(156, 39, 176, 0.3) 20%, rgba(156, 39, 176, 0.8) 50%, rgba(156, 39, 176, 0.3) 80%, transparent 100%); margin-top: 10px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Детали стратегии -->
+            <div id="strategyDetail" class="page">
+                <div class="section">
+                    <h2 class="section-title" id="strategyDetailTitle"></h2>
+                    <div id="strategyDetailContent"></div>
+                </div>
+            </div>
+
+            <!-- Страница Наша семья -->
+            <div id="familyPage" class="page">
+                <div class="section">
+                    <h2 class="section-title">👨‍👩‍👧‍👦 Наша семья</h2>
+                    
+                    <!-- Кнопка "Мой профиль" -->
+                    <div style="margin-bottom: 30px;">
+                        <button class="btn-primary" onclick="showProfile()" style="background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%); margin-top: 0;">
+                            👤 Мой профиль
+                        </button>
+                    </div>
+                    
+                    <!-- Список пользователей семьи -->
+                    <div id="familyMembers">
+                        <div style="background: rgba(255, 255, 255, 0.08); border-radius: 15px; padding: 20px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px;">
+                            <div style="width: 50px; height: 50px; background: linear-gradient(45deg, #4facfe, #00f2fe); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white;">
+                                👤
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="color: #ffffff; font-weight: bold; margin-bottom: 5px;" id="familyUserName">Пользователь</div>
+                                <div style="color: #4facfe; font-size: 14px;" id="familyUserExp">Новичок • 0 очков</div>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.1); color: #b8c5d1; padding: 4px 8px; border-radius: 10px; font-size: 12px; font-weight: bold;">
+                                FREE
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Статистика семьи -->
+                    <div style="background: rgba(255, 255, 255, 0.08); border-radius: 15px; padding: 20px; margin-top: 30px;">
+                        <h4 style="color: #ffc107; margin-bottom: 15px;">📊 Статистика семьи</h4>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="color: #b8c5d1;">Всего участников:</span>
+                            <span style="color: #ffffff; font-weight: 500;">4 человека</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="color: #b8c5d1;">Общие очки:</span>
+                            <span style="color: #00f2fe; font-weight: 500;">2,773 очка</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #b8c5d1;">Место в рейтинге:</span>
+                            <span style="color: #ffc107; font-weight: 500;">#1247</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Страница Новости -->
+            <div id="newsPage" class="page">
+                <div class="section">
+                    <h2 class="section-title">📰 Новости рынка</h2>
+                    
+                    <!-- Табы для переключения источников -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; padding: 0 10px;">
+                        <button onclick="switchNewsSource('marketwatch')" class="news-tab active" id="marketwatch-tab" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%); color: white; font-weight: bold; cursor: pointer;">
+                            📈 MarketWatch
+                        </button>
+                        <button onclick="switchNewsSource('tradingview')" class="news-tab" id="tradingview-tab" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255, 255, 255, 0.1); color: white; font-weight: bold; cursor: pointer;">
+                            📊 TradingView
+                        </button>
+                        <button onclick="switchNewsSource('api')" class="news-tab" id="api-tab" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255, 255, 255, 0.1); color: white; font-weight: bold; cursor: pointer;">
+                            🔔 Live API
+                        </button>
+                    </div>
+                    
+                    <!-- MarketWatch виджет -->
+                    <div id="marketwatch-news" class="news-container active" style="border-radius: 15px; overflow: hidden; height: 600px;">
+                        <!-- MarketWatch RSS виджет -->
+                        <div style="background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; height: 100%; overflow-y: auto;">
+                            <div id="marketwatch-content">
+                                <div style="text-align: center; padding: 40px; color: #b8c5d1;">
+                                    <div style="font-size: 48px; margin-bottom: 20px;">📈</div>
+                                    <p>Загрузка новостей MarketWatch...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TradingView виджет -->
+                    <div id="tradingview-news" class="news-container" style="display: none; border-radius: 15px; overflow: hidden; height: 600px;">
+                        <!-- TradingView Timeline виджет -->
+                        <div class="tradingview-widget-container" style="height: 100%;">
+                            <div class="tradingview-widget-container__widget" style="height: calc(100% - 32px);"></div>
+                            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+                            {
+                                "feedMode": "all_symbols",
+                                "colorTheme": "dark",
+                                "isTransparent": true,
+                                "displayMode": "adaptive",
+                                "width": "100%",
+                                "height": "100%",
+                                "locale": "ru"
+                            }
+                            </script>
+                        </div>
+                    </div>
+                    
+                    <!-- API новости -->
+                    <div id="api-news" class="news-container" style="display: none; border-radius: 15px; overflow: hidden; height: 600px;">
+                        <div style="background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; height: 100%; overflow-y: auto;">
+                            <div id="api-news-content">
+                                <div style="text-align: center; padding: 40px; color: #b8c5d1;">
+                                    <div style="font-size: 48px; margin-bottom: 20px;">🔔</div>
+                                    <p>Загрузка актуальных новостей...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Страница Аналитика -->
+            <div id="analyticsPage" class="page">
+                <div class="section">
+                    <h2 class="section-title">📊 Аналитика</h2>
+                    
+                    <div style="background: rgba(255, 255, 255, 0.08); border-radius: 15px; padding: 20px; margin-bottom: 20px;">
+                        <h4 style="color: #00f2fe; margin-bottom: 15px;">📈 Ваша статистика</h4>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="color: #b8c5d1;">Полученных сигналов:</span>
+                            <span style="color: #ffffff; font-weight: 500;" id="userSignalsCount">0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="color: #b8c5d1;">Использовано стратегий:</span>
+                            <span style="color: #ffffff; font-weight: 500;" id="strategiesUsedCount">0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #b8c5d1;">Дней в системе:</span>
+                            <span style="color: #ffffff; font-weight: 500;" id="daysInSystemCount">0</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; padding: 40px 20px; color: #b8c5d1; margin-top: 30px;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">📈</div>
+                        <h3 style="color: #00f2fe; margin-bottom: 15px;">Дополнительная аналитика</h3>
+                        <p style="line-height: 1.6;">
+                            • Детальная аналитика ваших сделок<br>
+                            • История использования стратегий<br>
+                            • Процент успешных сигналов<br>
+                            • Рекомендации по улучшению
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Страница Поддержка -->
+            <div id="supportPage" class="page">
+                <div class="section">
+                    <h2 class="section-title">🛟 Поддержка</h2>
+                    <form id="supportForm">
+                        <div class="form-group">
+                            <label class="form-label">Имя</label>
+                            <input type="text" class="form-input" id="supportName" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Тема обращения</label>
+                            <input type="text" class="form-input" id="supportSubject" placeholder="Кратко опишите проблему" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Описание</label>
+                            <textarea class="form-input" id="supportDescription" rows="5" placeholder="Подробно опишите вашу проблему или вопрос" required style="resize: vertical; min-height: 120px;"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">Отправить запрос</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Нижнее меню -->
+        <div class="bottom-nav">
+            <div class="bottom-nav-corner-right"></div>
+            <div class="nav-item active" onclick="showPage('lessons')">
+                <div class="nav-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="nav-label">Видео уроки</div>
+            </div>
+            <div class="nav-item" onclick="showPage('strategies')">
+                <div class="nav-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                        <path d="M12 2l2 4-2-1-2 1z" fill="currentColor"/>
+                        <rect x="11.5" y="6" width="1" height="6" fill="currentColor"/>
+                        <path d="M10 14l2-1 2 1v2l-2-1-2 1z" fill="currentColor"/>
+                        <path d="M10.5 15.5l1-0.5 1 0.5v1l-1-0.5-1 0.5z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <div class="nav-label">Стратегии</div>
+            </div>
+            <div class="nav-item" onclick="showPage('family')">
+                <div class="nav-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2M4 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2m5 0c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2" stroke="currentColor" stroke-width="1"/>
+                        <path d="M12.5 11H17v6c0 .55-.45 1-1 1h-2c-.55 0-1-.45-1-1v-6M11.5 11H7v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6M14 9h-4c-.83 0-1.5.67-1.5 1.5v.5h7v-.5c0-.83-.67-1.5-1.5-1.5" fill="currentColor"/>
+                    </svg>
+                </div>
+                <div class="nav-label">Наша семья</div>
+            </div>
+            <div class="nav-item" onclick="showPage('news')">
+                <div class="nav-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                        <line x1="9" y1="9" x2="9.01" y2="9"/>
+                        <line x1="15" y1="9" x2="15.01" y2="9"/>
+                    </svg>
+                </div>
+                <div class="nav-label">Новости</div>
+            </div>
+            <div class="nav-item" onclick="showPage('analytics')">
+                <div class="nav-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="2" y="3" width="6" height="8" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="3" y="5" width="4" height="1" fill="currentColor"/>
+                        <rect x="3" y="7" width="2" height="1" fill="currentColor"/>
+                        <rect x="3" y="8" width="2" height="1" fill="currentColor"/>
+                        <rect x="6" y="8" width="1" height="1" fill="currentColor"/>
+                        <circle cx="16" cy="8" r="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M16 5v3l2 2" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M12 16l2-2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
+                </div>
+                <div class="nav-label">Аналитика</div>
+            </div>
+            <div class="nav-item" onclick="showPage('support')">
+                <div class="nav-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M16 2v2M8 2v2M20 8h-2M6 8H4M20 16h-2M6 16H4" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <div class="nav-label">Поддержка</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram?.WebApp || {
+            ready: () => {},
+            expand: () => {},
+            sendData: (data) => console.log('Отправка данных:', data),
+            showAlert: (message) => alert(message)
+        };
+
+        tg.ready();
+        tg.expand();
+
+        let userProfile = null;
+        let currentPage = 'lessons';
+        let navigationStack = [];
+        let currentCoin = 'BTCUSDT';
+        let currentChartType = 'candles';
+        let currentLanguage = 'ru';
+        let strategyManager = null;
+
+        // Реальный менеджер рыночных данных
+        class MarketDataManager {
+            constructor() {
+                this.ws = null;
+                this.candles = [];
+                this.currentSymbol = 'BTCUSDT';
+                this.callbacks = [];
+                this.isConnected = false;
+                this.tickerWs = null;
+                this.swingPoints = [];
+            }
+
+            async loadHistoricalData(symbol = this.currentSymbol, limit = 500) {
+                try {
+                    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=15m&limit=${limit}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    this.candles = data.map(kline => ({
+                        time: kline[0],
+                        open: parseFloat(kline[1]),
+                        high: parseFloat(kline[2]),
+                        low: parseFloat(kline[3]),
+                        close: parseFloat(kline[4]),
+                        volume: parseFloat(kline[5])
+                    }));
+
+                    console.log(`Загружено ${this.candles.length} свечей для ${symbol}`);
+                    this.notifyCallbacks('historicalData', this.candles);
+                    return this.candles;
+                } catch (error) {
+                    console.error('Ошибка загрузки данных:', error);
+                    return [];
+                }
+            }
+
+            connectTickerWebSocket() {
+                if (this.tickerWs) this.tickerWs.close();
+
+                const symbols = ['btcusdt', 'ethusdt', 'bnbusdt', 'solusdt', 'xrpusdt', 'adausdt'];
+                const streams = symbols.map(s => `${s}@ticker`).join('/');
+                const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`;
+                
+                this.tickerWs = new WebSocket(wsUrl);
+                
+                this.tickerWs.onopen = () => {
+                    console.log('Ticker WebSocket подключен');
+                };
+                
+                this.tickerWs.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.data) {
+                            this.updateTickerUI(data.data);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка Ticker WebSocket:', error);
+                    }
+                };
+                
+                this.tickerWs.onclose = () => {
+                    console.log('Ticker WebSocket отключен');
+                    setTimeout(() => this.connectTickerWebSocket(), 5000);
+                };
+            }
+
+            updateTickerUI(ticker) {
+                const symbol = ticker.s.toLowerCase();
+                const price = parseFloat(ticker.c);
+                const change = parseFloat(ticker.P);
+                
+                const coinMap = {
+                    'btcusdt': 'btc',
+                    'ethusdt': 'eth', 
+                    'bnbusdt': 'bnb',
+                    'solusdt': 'sol',
+                    'xrpusdt': 'xrp',
+                    'adausdt': 'ada'
+                };
+                
+                const coinPrefix = coinMap[symbol];
+                if (!coinPrefix) return;
+                
+                const priceElement = document.getElementById(`${coinPrefix}Price`);
+                const changeElement = document.getElementById(`${coinPrefix}Change`);
+                
+                if (priceElement) {
+                    priceElement.textContent = `${price.toFixed(price >= 1 ? 2 : 4)}`;
+                }
+                
+                if (changeElement) {
+                    changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                    changeElement.className = `crypto-change ${change >= 0 ? '' : 'negative'}`;
+                }
+            }
+
+            // Поиск swing точек (экстремумов)
+            findSwingPoints(lookback = 3) {
+                if (this.candles.length < lookback * 2 + 1) return [];
+                
+                const swings = [];
+                
+                for (let i = lookback; i < this.candles.length - lookback; i++) {
+                    const candle = this.candles[i];
+                    
+                    // Проверка на swing high
+                    let isSwingHigh = true;
+                    for (let j = i - lookback; j <= i + lookback; j++) {
+                        if (j !== i && this.candles[j].high >= candle.high) {
+                            isSwingHigh = false;
+                            break;
+                        }
+                    }
+                    
+                    // Проверка на swing low
+                    let isSwingLow = true;
+                    for (let j = i - lookback; j <= i + lookback; j++) {
+                        if (j !== i && this.candles[j].low <= candle.low) {
+                            isSwingLow = false;
+                            break;
+                        }
+                    }
+                    
+                    if (isSwingHigh) {
+                        swings.push({
+                            index: i,
+                            time: candle.time,
+                            price: candle.high,
+                            type: 'high'
+                        });
+                    }
+                    
+                    if (isSwingLow) {
+                        swings.push({
+                            index: i,
+                            time: candle.time,
+                            price: candle.low,
+                            type: 'low'
+                        });
+                    }
+                }
+                
+                this.swingPoints = swings;
+                return swings;
+            }
+
+            subscribe(callback) {
+                this.callbacks.push(callback);
+            }
+            
+            notifyCallbacks(type, data) {
+                this.callbacks.forEach(callback => {
+                    try {
+                        callback(type, data);
+                    } catch (error) {
+                        console.error('Ошибка в callback:', error);
+                    }
+                });
+            }
+
+            setSymbol(symbol) {
+                this.currentSymbol = symbol;
+                this.candles = [];
+                this.swingPoints = [];
+                this.loadHistoricalData();
+            }
+        }
+
+        // Стратегия MA14 по авторской логике
+        class MA14Strategy {
+            constructor() {
+                this.name = 'MA14';
+                this.period = 14;
+            }
+
+            calculateMA(candles, period = this.period) {
+                if (candles.length < period) return [];
+                
+                const ma = [];
+                for (let i = period - 1; i < candles.length; i++) {
+                    let sum = 0;
+                    for (let j = i - period + 1; j <= i; j++) {
+                        sum += candles[j].close;
+                    }
+                    ma.push({
+                        time: candles[i].time,
+                        value: sum / period
+                    });
+                }
+                return ma;
+            }
+
+            analyze(candles) {
+                if (candles.length < this.period + 3) {
+                    return {
+                        signal: 'WAIT',
+                        reason: 'Недостаточно данных для анализа',
+                        confidence: 0
+                    };
+                }
+
+                const ma = this.calculateMA(candles);
+                const last3Candles = candles.slice(-3);
+                
+                // Проверяем, что все 3 последние свечи закрылись выше MA14
+                const allAboveMA = last3Candles.every((candle, index) => {
+                    const maIndex = ma.length - 3 + index;
+                    return maIndex >= 0 && candle.close > ma[maIndex].value;
+                });
+
+                // Проверяем, что все 3 последние свечи закрылись ниже MA14
+                const allBelowMA = last3Candles.every((candle, index) => {
+                    const maIndex = ma.length - 3 + index;
+                    return maIndex >= 0 && candle.close < ma[maIndex].value;
+                });
+
+                const currentPrice = candles[candles.length - 1].close;
+                const currentMA = ma[ma.length - 1].value;
+
+                if (allAboveMA) {
+                    return {
+                        signal: 'BUY',
+                        reason: '3 свечи подряд закрылись выше MA14',
+                        price: currentPrice,
+                        ma: currentMA,
+                        confidence: 85
+                    };
+                } else if (allBelowMA) {
+                    return {
+                        signal: 'SELL',
+                        reason: '3 свечи подряд закрылись ниже MA14',
+                        price: currentPrice,
+                        ma: currentMA,
+                        confidence: 85
+                    };
+                } else {
+                    return {
+                        signal: 'NEUTRAL',
+                        reason: 'Нет подтверждения направления тренда',
+                        price: currentPrice,
+                        ma: currentMA,
+                        confidence: 40
+                    };
+                }
+            }
+        }
+
+        // Стратегия трендовой линии по логике тройного движения Шахруза
+        class TrendlineStrategy {
+            constructor() {
+                this.name = 'Trendline';
+                this.trendlines = [];
+                this.currentPattern = null;
+            }
+
+            analyze(candles, swingPoints) {
+                if (swingPoints.length < 4) {
+                    return {
+                        signal: 'WAIT',
+                        reason: 'Недостаточно swing точек для построения трендовой линии',
+                        confidence: 0
+                    };
+                }
+
+                // Ищем паттерн восходящего тренда: 1-Хай, 2-Лоу, 3-Перехай, 4-Лоу
+                const ascendingPattern = this.findAscendingPattern(swingPoints);
+                if (ascendingPattern) {
+                    return this.analyzeAscendingTrendline(candles, ascendingPattern);
+                }
+
+                // Ищем паттерн нисходящего тренда: 1-Лоу, 2-Хай, 3-Перелов, 4-Хай
+                const descendingPattern = this.findDescendingPattern(swingPoints);
+                if (descendingPattern) {
+                    return this.analyzeDescendingTrendline(candles, descendingPattern);
+                }
+
+                return {
+                    signal: 'NEUTRAL',
+                    reason: 'Паттерн тройного движения не обнаружен',
+                    confidence: 20
+                };
+            }
+
+            findAscendingPattern(swingPoints) {
+                // Ищем последовательность: Хай -> Лоу -> Перехай -> Лоу
+                for (let i = swingPoints.length - 1; i >= 3; i--) {
+                    const point4 = swingPoints[i];
+                    if (point4.type !== 'low') continue;
+
+                    for (let j = i - 1; j >= 2; j--) {
+                        const point3 = swingPoints[j];
+                        if (point3.type !== 'high') continue;
+
+                        for (let k = j - 1; k >= 1; k--) {
+                            const point2 = swingPoints[k];
+                            if (point2.type !== 'low') continue;
+
+                            for (let l = k - 1; l >= 0; l--) {
+                                const point1 = swingPoints[l];
+                                if (point1.type !== 'high') continue;
+
+                                // Проверяем, что point3 выше point1 (перехай)
+                                if (point3.price > point1.price) {
+                                    return { point1, point2, point3, point4 };
+                                }
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            findDescendingPattern(swingPoints) {
+                // Ищем последовательность: Лоу -> Хай -> Перелов -> Хай
+                for (let i = swingPoints.length - 1; i >= 3; i--) {
+                    const point4 = swingPoints[i];
+                    if (point4.type !== 'high') continue;
+
+                    for (let j = i - 1; j >= 2; j--) {
+                        const point3 = swingPoints[j];
+                        if (point3.type !== 'low') continue;
+
+                        for (let k = j - 1; k >= 1; k--) {
+                            const point2 = swingPoints[k];
+                            if (point2.type !== 'high') continue;
+
+                            for (let l = k - 1; l >= 0; l--) {
+                                const point1 = swingPoints[l];
+                                if (point1.type !== 'low') continue;
+
+                                // Проверяем, что point3 ниже point1 (перелов)
+                                if (point3.price < point1.price) {
+                                    return { point1, point2, point3, point4 };
+                                }
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            analyzeAscendingTrendline(candles, pattern) {
+                const currentPrice = candles[candles.length - 1].close;
+                const trendlinePrice = this.calculateTrendlinePrice(pattern.point2, pattern.point4, candles[candles.length - 1].time);
+                
+                const distance = Math.abs(currentPrice - trendlinePrice) / trendlinePrice * 100;
+                
+                if (distance < 0.5) { // Касание линии (0.5%)
+                    return {
+                        signal: 'TOUCH',
+                        reason: 'Касание восходящей трендовой линии',
+                        price: currentPrice,
+                        trendlinePrice: trendlinePrice,
+                        confidence: 75
+                    };
+                } else if (currentPrice < trendlinePrice * 0.995) { // Пробой вниз
+                    return {
+                        signal: 'BREAKDOWN',
+                        reason: 'Пробой восходящей трендовой линии вниз',
+                        price: currentPrice,
+                        trendlinePrice: trendlinePrice,
+                        confidence: 80
+                    };
+                } else {
+                    return {
+                        signal: 'HOLD',
+                        reason: 'Цена выше трендовой линии',
+                        price: currentPrice,
+                        trendlinePrice: trendlinePrice,
+                        confidence: 60
+                    };
+                }
+            }
+
+            analyzeDescendingTrendline(candles, pattern) {
+                const currentPrice = candles[candles.length - 1].close;
+                const trendlinePrice = this.calculateTrendlinePrice(pattern.point2, pattern.point4, candles[candles.length - 1].time);
+                
+                const distance = Math.abs(currentPrice - trendlinePrice) / trendlinePrice * 100;
+                
+                if (distance < 0.5) { // Касание линии
+                    return {
+                        signal: 'TOUCH',
+                        reason: 'Касание нисходящей трендовой линии',
+                        price: currentPrice,
+                        trendlinePrice: trendlinePrice,
+                        confidence: 75
+                    };
+                } else if (currentPrice > trendlinePrice * 1.005) { // Пробой вверх
+                    return {
+                        signal: 'BREAKOUT',
+                        reason: 'Пробой нисходящей трендовой линии вверх',
+                        price: currentPrice,
+                        trendlinePrice: trendlinePrice,
+                        confidence: 80
+                    };
+                } else {
+                    return {
+                        signal: 'HOLD',
+                        reason: 'Цена ниже трендовой линии',
+                        price: currentPrice,
+                        trendlinePrice: trendlinePrice,
+                        confidence: 60
+                    };
+                }
+            }
+
+            calculateTrendlinePrice(point1, point2, currentTime) {
+                const timeDiff = point2.time - point1.time;
+                const priceDiff = point2.price - point1.price;
+                const slope = priceDiff / timeDiff;
+                
+                return point2.price + slope * (currentTime - point2.time);
+            }
+        }
+
+        // Стратегия трендового канала
+        class ChannelStrategy {
+            constructor() {
+                this.name = 'Channel';
+                this.channels = [];
+            }
+
+            analyze(candles, swingPoints) {
+                if (swingPoints.length < 3) {
+                    return {
+                        signal: 'WAIT',
+                        reason: 'Недостаточно точек для построения канала',
+                        confidence: 0
+                    };
+                }
+
+                // Ищем восходящий канал
+                const ascendingChannel = this.findAscendingChannel(swingPoints);
+                if (ascendingChannel) {
+                    return this.analyzeAscendingChannel(candles, ascendingChannel);
+                }
+
+                // Ищем нисходящий канал
+                const descendingChannel = this.findDescendingChannel(swingPoints);
+                if (descendingChannel) {
+                    return this.analyzeDescendingChannel(candles, descendingChannel);
+                }
+
+                return {
+                    signal: 'NEUTRAL',
+                    reason: 'Трендовый канал не обнаружен',
+                    confidence: 30
+                };
+            }
+
+            findAscendingChannel(swingPoints) {
+                // Ищем 1-Хай, 2-Лоу, 3-Перехай
+                for (let i = swingPoints.length - 1; i >= 2; i--) {
+                    const point3 = swingPoints[i];
+                    if (point3.type !== 'high') continue;
+
+                    for (let j = i - 1; j >= 1; j--) {
+                        const point2 = swingPoints[j];
+                        if (point2.type !== 'low') continue;
+
+                        for (let k = j - 1; k >= 0; k--) {
+                            const point1 = swingPoints[k];
+                            if (point1.type !== 'high') continue;
+
+                            if (point3.price > point1.price) {
+                                return { point1, point2, point3 };
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            findDescendingChannel(swingPoints) {
+                // Ищем 1-Лоу, 2-Хай, 3-Перелов
+                for (let i = swingPoints.length - 1; i >= 2; i--) {
+                    const point3 = swingPoints[i];
+                    if (point3.type !== 'low') continue;
+
+                    for (let j = i - 1; j >= 1; j--) {
+                        const point2 = swingPoints[j];
+                        if (point2.type !== 'high') continue;
+
+                        for (let k = j - 1; k >= 0; k--) {
+                            const point1 = swingPoints[k];
+                            if (point1.type !== 'low') continue;
+
+                            if (point3.price < point1.price) {
+                                return { point1, point2, point3 };
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            analyzeAscendingChannel(candles, channel) {
+                const currentPrice = candles[candles.length - 1].close;
+                const currentTime = candles[candles.length - 1].time;
+                
+                const upperBound = this.calculateChannelPrice(channel.point1, channel.point3, currentTime);
+                const lowerBound = this.calculateParallelPrice(channel.point1, channel.point3, channel.point2, currentTime);
+                
+                const channelWidth = upperBound - lowerBound;
+                const pricePosition = (currentPrice - lowerBound) / channelWidth;
+                
+                if (pricePosition >= 0.9) {
+                    return {
+                        signal: 'SELL',
+                        reason: 'Цена у верхней границы восходящего канала',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 70
+                    };
+                } else if (pricePosition <= 0.1) {
+                    return {
+                        signal: 'BUY',
+                        reason: 'Цена у нижней границы восходящего канала',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 70
+                    };
+                } else if (currentPrice > upperBound) {
+                    return {
+                        signal: 'BREAKOUT',
+                        reason: 'Пробой верхней границы канала вверх',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 85
+                    };
+                } else if (currentPrice < lowerBound) {
+                    return {
+                        signal: 'BREAKDOWN',
+                        reason: 'Пробой нижней границы канала вниз',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 85
+                    };
+                }
+                
+                return {
+                    signal: 'HOLD',
+                    reason: 'Цена в середине канала',
+                    price: currentPrice,
+                    upperBound: upperBound,
+                    lowerBound: lowerBound,
+                    confidence: 50
+                };
+            }
+
+            analyzeDescendingChannel(candles, channel) {
+                const currentPrice = candles[candles.length - 1].close;
+                const currentTime = candles[candles.length - 1].time;
+                
+                const lowerBound = this.calculateChannelPrice(channel.point1, channel.point3, currentTime);
+                const upperBound = this.calculateParallelPrice(channel.point1, channel.point3, channel.point2, currentTime);
+                
+                const channelWidth = upperBound - lowerBound;
+                const pricePosition = (currentPrice - lowerBound) / channelWidth;
+                
+                if (pricePosition >= 0.9) {
+                    return {
+                        signal: 'SELL',
+                        reason: 'Цена у верхней границы нисходящего канала',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 70
+                    };
+                } else if (pricePosition <= 0.1) {
+                    return {
+                        signal: 'BUY',
+                        reason: 'Цена у нижней границы нисходящего канала',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 70
+                    };
+                } else if (currentPrice > upperBound) {
+                    return {
+                        signal: 'BREAKOUT',
+                        reason: 'Пробой верхней границы канала вверх',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 85
+                    };
+                } else if (currentPrice < lowerBound) {
+                    return {
+                        signal: 'BREAKDOWN',
+                        reason: 'Пробой нижней границы канала вниз',
+                        price: currentPrice,
+                        upperBound: upperBound,
+                        lowerBound: lowerBound,
+                        confidence: 85
+                    };
+                }
+                
+                return {
+                    signal: 'HOLD',
+                    reason: 'Цена в середине канала',
+                    price: currentPrice,
+                    upperBound: upperBound,
+                    lowerBound: lowerBound,
+                    confidence: 50
+                };
+            }
+
+            calculateChannelPrice(point1, point2, currentTime) {
+                const timeDiff = point2.time - point1.time;
+                const priceDiff = point2.price - point1.price;
+                const slope = priceDiff / timeDiff;
+                
+                return point2.price + slope * (currentTime - point2.time);
+            }
+
+            calculateParallelPrice(point1, point2, referencePoint, currentTime) {
+                const channelPrice = this.calculateChannelPrice(point1, point2, referencePoint.time);
+                const offset = referencePoint.price - channelPrice;
+                
+                return this.calculateChannelPrice(point1, point2, currentTime) + offset;
+            }
+        }
+
+        // Главный менеджер стратегий
+        class StrategyManager {
+            constructor() {
+                this.strategies = {
+                    ma14: new MA14Strategy(),
+                    trendline: new TrendlineStrategy(),
+                    channel: new ChannelStrategy()
+                };
+                this.signals = [];
+                this.marketData = new MarketDataManager();
+                this.initializeMarketData();
+            }
+
+            initializeMarketData() {
+                this.marketData.subscribe((type, data) => {
+                    if (type === 'historicalData') {
+                        this.analyzeHistoricalData(data);
+                    }
+                });
+
+                this.marketData.loadHistoricalData().then(() => {
+                    this.marketData.connectTickerWebSocket();
+                });
+            }
+
+            analyzeHistoricalData(candles) {
+                // Находим swing точки
+                const swingPoints = this.marketData.findSwingPoints(3);
+                
+                // Анализируем каждую стратегию
+                Object.keys(this.strategies).forEach(strategyName => {
+                    const strategy = this.strategies[strategyName];
+                    let result;
+                    
+                    if (strategyName === 'ma14') {
+                        result = strategy.analyze(candles);
+                    } else {
+                        result = strategy.analyze(candles, swingPoints);
+                    }
+                    
+                    this.updateStrategyUI(strategyName, result);
+                    
+                    // Добавляем значимые сигналы
+                    if (['BUY', 'SELL', 'BREAKOUT', 'BREAKDOWN', 'TOUCH'].includes(result.signal)) {
+                        this.addSignal(strategyName, result);
+                    }
+                });
+            }
+
+            updateStrategyUI(strategyName, result) {
+                const signalElement = document.getElementById(`${strategyName}Signal`);
+                if (!signalElement) return;
+
+                signalElement.className = 'signal-indicator';
+                
+                if (['BUY', 'BREAKOUT'].includes(result.signal)) {
+                    signalElement.className += ' signal-buy';
+                    signalElement.textContent = `🟢 ${result.signal} ${result.price?.toFixed(2) || ''}`;
+                } else if (['SELL', 'BREAKDOWN'].includes(result.signal)) {
+                    signalElement.className += ' signal-sell';
+                    signalElement.textContent = `🔴 ${result.signal} ${result.price?.toFixed(2) || ''}`;
+                } else {
+                    signalElement.className += ' signal-neutral';
+                    signalElement.textContent = `⚪ ${result.signal}`;
+                }
+            }
+
+            addSignal(strategyName, result) {
+                const signal = {
+                    id: Date.now(),
+                    timestamp: Date.now(),
+                    symbol: this.marketData.currentSymbol,
+                    strategy: strategyName,
+                    signal: result.signal,
+                    price: result.price,
+                    reason: result.reason,
+                    confidence: result.confidence || 50
+                };
+
+                this.signals.unshift(signal);
+                this.signals = this.signals.slice(0, 20); // Храним только последние 20 сигналов
+                this.updateLiveSignalsUI();
+                
+                // Сохраняем в Firebase если доступен
+                if (window.db && window.firestoreUtils) {
+                    window.firestoreUtils.addDoc(
+                        window.firestoreUtils.collection(window.db, 'signals'), 
+                        { ...signal, userId: userProfile?.firstName || 'anonymous' }
+                    ).catch(console.error);
+                }
+
+                // Обновляем счетчик сигналов пользователя
+                const currentCount = parseInt(localStorage.getItem('userSignalsCount') || '0');
+                localStorage.setItem('userSignalsCount', (currentCount + 1).toString());
+                updateUserStats();
+            }
+
+            updateLiveSignalsUI() {
+                const container = document.getElementById('liveSignalsContainer');
+                if (!container) return;
+                
+                const signals = this.signals.slice(0, 5);
+                
+                if (signals.length === 0) {
+                    container.innerHTML = '<div style="color: #b8c5d1; text-align: center; padding: 20px;">Ожидание сигналов...</div>';
+                    return;
+                }
+
+                let signalsHtml = '';
+                signals.forEach(signal => {
+                    const time = new Date(signal.timestamp).toLocaleTimeString();
+                    let signalColor = '#ffbb33';
+                    let signalIcon = '⚪';
+                    
+                    if (['BUY', 'BREAKOUT'].includes(signal.signal)) {
+                        signalColor = '#00c851';
+                        signalIcon = '🟢';
+                    } else if (['SELL', 'BREAKDOWN'].includes(signal.signal)) {
+                        signalColor = '#ff4444';
+                        signalIcon = '🔴';
+                    } else if (signal.signal === 'TOUCH') {
+                        signalColor = '#4facfe';
+                        signalIcon = '🔵';
+                    }
+                    
+                    signalsHtml += `
+                        <div class="signal-item" style="--signal-color: ${signalColor};">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <div style="color: ${signalColor}; font-weight: bold;">
+                                    ${signalIcon} ${signal.strategy.toUpperCase()}: ${signal.signal}
+                                </div>
+                                <div style="color: #b8c5d1; font-size: 12px;">${time}</div>
+                            </div>
+                            <div style="color: #ffffff; font-size: 14px; margin-bottom: 5px;">
+                                ${signal.symbol} - ${signal.price.toFixed(2)} (${signal.confidence}%)
+                            </div>
+                            <div style="color: #b8c5d1; font-size: 12px;">${signal.reason}</div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = signalsHtml;
+            }
+
+            setSymbol(symbol) {
+                this.marketData.setSymbol(symbol);
+                this.signals = [];
+                this.updateLiveSignalsUI();
+            }
+        }
+
+        // Функция переключения источников новостей
+        function switchNewsSource(source) {
+            // Скрываем все контейнеры новостей
+            document.querySelectorAll('.news-container').forEach(container => {
+                container.style.display = 'none';
+            });
+            
+            // Убираем активный класс у всех табов
+            document.querySelectorAll('.news-tab').forEach(tab => {
+                tab.style.background = 'rgba(255, 255, 255, 0.1)';
+            });
+            
+            // Показываем выбранный источник
+            document.getElementById(source + '-news').style.display = 'block';
+            
+            // Активируем выбранный таб
+            document.getElementById(source + '-tab').style.background = 'linear-gradient(45deg, #4facfe 0%, #00f2fe 100%)';
+            
+            // Загружаем контент в зависимости от источника
+            if (source === 'marketwatch') {
+                loadMarketWatchNews();
+            } else if (source === 'api') {
+                loadAPINews();
+            }
+        }
+
+        // Загрузка новостей MarketWatch через RSS
+        async function loadMarketWatchNews() {
+            const container = document.getElementById('marketwatch-content');
+            
+            try {
+                // Используем RSS2JSON API для получения RSS MarketWatch
+                const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://feeds.marketwatch.com/marketwatch/topstories/');
+                const data = await response.json();
+                
+                if (data.status === 'ok' && data.items) {
+                    let newsHtml = '';
+                    data.items.slice(0, 10).forEach(item => {
+                        const date = new Date(item.pubDate).toLocaleDateString('ru-RU');
+                        newsHtml += `
+                            <div class="news-item" style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                <h3 style="color: #4facfe; margin-bottom: 10px; font-size: 16px; line-height: 1.4;">${item.title}</h3>
+                                <p style="color: #b8c5d1; font-size: 14px; line-height: 1.5; margin-bottom: 10px;">${item.description.replace(/<[^>]*>/g, '').substring(0, 200)}...</p>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: #4facfe; font-size: 12px;">${date}</span>
+                                    <a href="${item.link}" target="_blank" style="color: #00f2fe; text-decoration: none; font-size: 12px; border: 1px solid #00f2fe; padding: 5px 10px; border-radius: 5px;">Читать далее</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = newsHtml;
+                } else {
+                    throw new Error('Ошибка загрузки RSS');
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки MarketWatch:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #b8c5d1;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                        <p>Ошибка загрузки новостей MarketWatch</p>
+                        <button onclick="loadMarketWatchNews()" style="margin-top: 15px; padding: 10px 20px; background: #4facfe; border: none; border-radius: 5px; color: white; cursor: pointer;">Повторить</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Загрузка новостей через API
+        async function loadAPINews() {
+            const container = document.getElementById('api-news-content');
+            
+            try {
+                // Используем NewsAPI (бесплатный тариф)
+                const apiKey = 'YOUR_API_KEY'; // Нужно получить бесплатный ключ на newsapi.org
+                const response = await fetch(`https://newsapi.org/v2/everything?q=cryptocurrency OR bitcoin OR ethereum&language=en&sortBy=publishedAt&pageSize=20&apiKey=${apiKey}`);
+                
+                if (!response.ok) {
+                    throw new Error('API недоступен');
+                }
+                
+                const data = await response.json();
+                
+                if (data.articles && data.articles.length > 0) {
+                    let newsHtml = '';
+                    data.articles.slice(0, 15).forEach(article => {
+                        if (article.title && article.description) {
+                            const date = new Date(article.publishedAt).toLocaleDateString('ru-RU');
+                            const time = new Date(article.publishedAt).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+                            
+                            newsHtml += `
+                                <div class="news-item" style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                    <h3 style="color: #4facfe; margin-bottom: 10px; font-size: 16px; line-height: 1.4;">${article.title}</h3>
+                                    <p style="color: #b8c5d1; font-size: 14px; line-height: 1.5; margin-bottom: 10px;">${article.description ? article.description.substring(0, 200) : ''}...</p>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <span style="color: #00f2fe; font-size: 12px; margin-right: 10px;">${article.source.name}</span>
+                                            <span style="color: #4facfe; font-size: 12px;">${date} ${time}</span>
+                                        </div>
+                                        <a href="${article.url}" target="_blank" style="color: #00f2fe; text-decoration: none; font-size: 12px; border: 1px solid #00f2fe; padding: 5px 10px; border-radius: 5px;">Читать далее</a>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                    container.innerHTML = newsHtml;
+                } else {
+                    throw new Error('Нет доступных новостей');
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки API новостей:', error);
+                // Fallback к демо новостям
+                loadDemoNews();
+            }
+        }
+
+        // Демо новости как fallback
+        function loadDemoNews() {
+            const container = document.getElementById('api-news-content');
+            const demoNews = [
+                {
+                    title: "Bitcoin достигает новых высот на фоне институционального интереса",
+                    description: "Криптовалютный рынок показывает сильный рост, поскольку крупные инвестиционные фонды увеличивают свои позиции в Bitcoin.",
+                    source: "CryptoNews",
+                    date: new Date().toLocaleDateString('ru-RU'),
+                    time: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}),
+                    url: "#"
+                },
+                {
+                    title: "Ethereum готовится к крупному обновлению протокола",
+                    description: "Разработчики анонсировали важные изменения, которые должны улучшить масштабируемость и снизить комиссии.",
+                    source: "EthereumWorld", 
+                    date: new Date(Date.now() - 2*60*60*1000).toLocaleDateString('ru-RU'),
+                    time: new Date(Date.now() - 2*60*60*1000).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}),
+                    url: "#"
+                },
+                {
+                    title: "Регулирование криптовалют: новые правила для бирж",
+                    description: "Финансовые регуляторы представили обновленные требования для криптовалютных платформ.",
+                    source: "FinanceToday",
+                    date: new Date(Date.now() - 4*60*60*1000).toLocaleDateString('ru-RU'), 
+                    time: new Date(Date.now() - 4*60*60*1000).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}),
+                    url: "#"
+                }
+            ];
+            
+            let newsHtml = '';
+            demoNews.forEach(article => {
+                newsHtml += `
+                    <div class="news-item" style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                        <h3 style="color: #4facfe; margin-bottom: 10px; font-size: 16px; line-height: 1.4;">${article.title}</h3>
+                        <p style="color: #b8c5d1; font-size: 14px; line-height: 1.5; margin-bottom: 10px;">${article.description}</p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="color: #00f2fe; font-size: 12px; margin-right: 10px;">${article.source}</span>
+                                <span style="color: #4facfe; font-size: 12px;">${article.date} ${article.time}</span>
+                            </div>
+                            <span style="color: #ffbb33; font-size: 12px; border: 1px solid #ffbb33; padding: 5px 10px; border-radius: 5px;">DEMO</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = newsHtml;
+        }
+
+        // Загрузка реальных новостей (обновленная функция)
+        async function loadRealNews() {
+            // Загружаем MarketWatch по умолчанию
+            setTimeout(() => {
+                loadMarketWatchNews();
+            }, 1000);
+        }
+
+        function loadMockNews() {
+            const newsContainer = document.getElementById('newsContainer');
+            if (!newsContainer) return;
+            
+            const mockNews = [
+                {
+                    title: "Bitcoin достиг нового максимума в $67,000",
+                    description: "Криптовалютный рынок показывает сильный рост на фоне институционального интереса к цифровым активам.",
+                    created_at: new Date().toISOString(),
+                    url: "#"
+                },
+                {
+                    title: "Ethereum готовится к крупному обновлению сети",
+                    description: "Разработчики Ethereum объявили о планах внедрения новых функций масштабирования в следующем квартале.",
+                    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                    url: "#"
+                },
+                {
+                    title: "Новые регуляторные требования для криптобирж",
+                    description: "Финансовые регуляторы ужесточают требования к криптовалютным платформам для защиты инвесторов.",
+                    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+                    url: "#"
+                },
+                {
+                    title: "DeFi протоколы показывают рекордный рост",
+                    description: "Общая заблокированная стоимость в DeFi протоколах превысила $100 миллиардов.",
+                    created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+                    url: "#"
+                }
+            ];
+            
+            displayNews(mockNews);
+        }
+
+        function displayNews(newsArray) {
+            const newsContainer = document.getElementById('newsContainer');
+            if (!newsContainer) return;
+            
+            newsContainer.innerHTML = '';
+            
+            if (newsArray.length === 0) {
+                newsContainer.innerHTML = '<div class="loading">Новости не найдены</div>';
+                return;
+            }
+            
+            newsArray.forEach(news => {
+                const newsItem = document.createElement('div');
+                newsItem.className = 'news-item';
+                
+                const date = new Date(news.created_at || news.date);
+                const formattedDate = date.toLocaleDateString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                newsItem.innerHTML = `
+                    <div class="news-title">${news.title}</div>
+                    <div class="news-summary">${news.description || news.summary}</div>
+                    <div class="news-date">${formattedDate}</div>
+                `;
+                
+                if (news.url && news.url !== '#') {
+                    newsItem.style.cursor = 'pointer';
+                    newsItem.addEventListener('click', () => {
+                        window.open(news.url, '_blank');
+                    });
+                }
+                
+                newsContainer.appendChild(newsItem);
+            });
+        }
+
+        // Инициализация анимации частиц для регистрации
+        function initParticles() {
+            const particlesContainer = document.getElementById('particles-js');
+            if (!particlesContainer) return;
+
+            // Создаем частицы программно
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                const size = Math.random() * 3 + 1;
+                const startX = Math.random() * 100;
+                const startY = Math.random() * 100;
+                const endX = startX + (Math.random() - 0.5) * 200;
+                const endY = startY + (Math.random() - 0.5) * 200;
+                const duration = Math.random() * 10 + 5;
+                const delay = Math.random() * 5;
+                
+                particle.style.cssText = `
+                    position: absolute;
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: rgba(79, 172, 254, ${Math.random() * 0.8 + 0.2});
+                    border-radius: 50%;
+                    left: ${startX}%;
+                    top: ${startY}%;
+                    --dx: ${endX - startX}%;
+                    --dy: ${endY - startY}%;
+                    animation: particleFloat ${duration}s linear infinite;
+                    animation-delay: ${delay}s;
+                `;
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Проверка авторизации при загрузке
+        function checkAuth() {
+            const savedProfile = JSON.parse(localStorage.getItem('userProfile') || 'null');
+            if (savedProfile) {
+                userProfile = savedProfile;
+                showMainApp();
+                setTimeout(initializeApp, 1000);
+            }
+        }
+
+        function showMainApp() {
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            updateUserInterface();
+        }
+
+        function updateUserInterface() {
+            if (userProfile) {
+                const supportNameInput = document.getElementById('supportName');
+                if (supportNameInput) {
+                    supportNameInput.value = `${userProfile.firstName} ${userProfile.lastName}`;
+                }
+                updateUserStats();
+            }
+        }
+
+        function updateUserStats() {
+            if (!userProfile) return;
+            
+            const registrationDate = new Date(userProfile.timestamp);
+            const today = new Date();
+            const diffDays = Math.ceil(Math.abs(today - registrationDate) / (1000 * 60 * 60 * 24));
+            
+            const elements = {
+                daysInSystemCount: diffDays,
+                strategiesUsedCount: localStorage.getItem('strategiesUsedCount') || '0',
+                userSignalsCount: localStorage.getItem('userSignalsCount') || '0'
+            };
+            
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = value;
+            });
+        }
+
+        function initializeApp() {
+            strategyManager = new StrategyManager();
+            loadRealNews();
+        }
+
+        // Обработка формы авторизации
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                birthYear: parseInt(document.getElementById('birthYear').value),
+                experience: document.getElementById('experience').value,
+                timestamp: new Date().toISOString()
+            };
+
+            localStorage.setItem('userProfile', JSON.stringify(formData));
+            userProfile = formData;
+            
+            // Сохраняем в Firebase если доступен
+            if (window.db && window.firestoreUtils) {
+                try {
+                    await window.firestoreUtils.addDoc(
+                        window.firestoreUtils.collection(window.db, 'users'), 
+                        { ...formData, createdAt: new Date(), premium: false }
+                    );
+                } catch (error) {
+                    console.error('Firebase error:', error);
+                }
+            }
+            
+            tg.sendData(JSON.stringify(formData));
+            showMainApp();
+            setTimeout(initializeApp, 1000);
+        });
+
+        // Навигация между страницами
+        function showPage(pageName) {
+            if (pageName !== currentPage) {
+                navigationStack.push(currentPage);
+            }
+            
+            currentPage = pageName;
+
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            document.getElementById(pageName + 'Page').classList.add('active');
+
+            const navItems = document.querySelectorAll('.nav-item');
+            const pageIndex = ['lessons', 'strategies', 'family', 'news', 'analytics', 'support'].indexOf(pageName);
+            if (pageIndex !== -1 && navItems[pageIndex]) {
+                navItems[pageIndex].classList.add('active');
+            }
+
+            updateBackButton();
+
+            if (pageName === 'strategies') {
+                setTimeout(() => {
+                    initTradingViewChart('mainChart');
+                }, 100);
+            } else if (pageName === 'family') {
+                updateFamilyInfo();
+            }
+        }
+
+        // Обновление информации о семье с реальным пользователем
+        function updateFamilyInfo() {
+            if (!userProfile) return;
+            
+            const experienceMap = {
+                'beginner': 'Новичок',
+                'intermediate': 'Средний',
+                'advanced': 'Продвинутый',
+                'expert': 'Эксперт'
+            };
+            
+            const userName = document.getElementById('familyUserName');
+            const userExp = document.getElementById('familyUserExp');
+            
+            if (userName) {
+                userName.textContent = `${userProfile.firstName} ${userProfile.lastName}`;
+            }
+            
+            if (userExp) {
+                const exp = experienceMap[userProfile.experience] || 'Новичок';
+                const points = localStorage.getItem('userSignalsCount') || '0';
+                userExp.textContent = `${exp} • ${points} очков`;
+            }
+        }
+
+        // Функции для работы со стратегиями
+        function showStrategy(strategyType) {
+            navigationStack.push(currentPage);
+            currentPage = 'strategyDetail';
+            
+            document.getElementById('strategiesPage').classList.remove('active');
+            document.getElementById('strategyDetail').classList.add('active');
+
+            // Увеличиваем счетчик использованных стратегий
+            const currentCount = parseInt(localStorage.getItem('strategiesUsedCount') || '0');
+            localStorage.setItem('strategiesUsedCount', (currentCount + 1).toString());
+            updateUserStats();
+
+            const strategies = {
+                ma14: {
+                    title: 'MA14 - Скользящая средняя',
+                    color: '#00c851',
+                    content: `
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #00c851; margin-bottom: 15px;">📊 Стратегия MA14</h3>
+                            <div style="background: rgba(0, 200, 81, 0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+                                <p><strong>Описание:</strong></p>
+                                <p>Стратегия основана на анализе скользящей средней с периодом 14. Использует авторскую методику Шахруза для определения точек входа и выхода.</p>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 15px;">
+                                <p><strong>Сигналы:</strong></p>
+                                <p>🟢 BUY: Сигнал на покупку</p>
+                                <p>🔴 SELL: Сигнал на продажу</p>
+                                <p>⚪ NEUTRAL: Нейтральная позиция</p>
+                                <p style="margin-top: 15px; color: #ffbb33; font-size: 12px;">
+                                    <strong>⚠️ Детальная логика стратегии является конфиденциальной</strong>
+                                </p>
+                            </div>
+                        </div>
+                    `
+                },
+                trendline: {
+                    title: 'Пробой трендовой линии',
+                    color: '#ff6b35',
+                    content: `
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #ff6b35; margin-bottom: 15px;">📈 Стратегия трендовых линий</h3>
+                            <div style="background: rgba(255, 107, 53, 0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+                                <p><strong>Описание:</strong></p>
+                                <p>Стратегия основана на авторской логике тройного движения Шахруза. Анализирует пробои ключевых уровней поддержки и сопротивления.</p>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 15px;">
+                                <p><strong>Сигналы:</strong></p>
+                                <p>🔵 TOUCH: Касание ключевого уровня</p>
+                                <p>🟢 BREAKOUT: Пробой вверх</p>
+                                <p>🔴 BREAKDOWN: Пробой вниз</p>
+                                <p style="margin-top: 15px; color: #ffbb33; font-size: 12px;">
+                                    <strong>⚠️ Детальная логика стратегии является конфиденциальной</strong>
+                                </p>
+                            </div>
+                        </div>
+                    `
+                },
+                channel: {
+                    title: 'Трендовый канал',
+                    color: '#9c27b0',
+                    content: `
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #9c27b0; margin-bottom: 15px;">📊 Стратегия каналов</h3>
+                            <div style="background: rgba(156, 39, 176, 0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+                                <p><strong>Описание:</strong></p>
+                                <p>Стратегия анализа трендовых каналов по авторской методике. Определяет оптимальные точки входа и выхода внутри канала.</p>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 15px;">
+                                <p><strong>Сигналы:</strong></p>
+                                <p>🟢 BUY: Покупка у поддержки</p>
+                                <p>🔴 SELL: Продажа у сопротивления</p>
+                                <p>⚡ BREAKOUT: Пробой границ канала</p>
+                                <p style="margin-top: 15px; color: #ffbb33; font-size: 12px;">
+                                    <strong>⚠️ Детальная логика стратегии является конфиденциальной</strong>
+                                </p>
+                            </div>
+                        </div>
+                    `
+                }
+            };
+
+            const strategy = strategies[strategyType];
+            const titleEl = document.getElementById('strategyDetailTitle');
+            const contentEl = document.getElementById('strategyDetailContent');
+            
+            if (titleEl) titleEl.textContent = strategy.title;
+            if (contentEl) contentEl.innerHTML = strategy.content;
+            
+            updateBackButton();
+        }
+
+        // Плавающая кнопка назад
+        function updateBackButton() {
+            const backBtn = document.getElementById('floatingBackBtn');
+            if (backBtn) {
+                if (navigationStack.length > 0) {
+                    backBtn.classList.add('show');
+                } else {
+                    backBtn.classList.remove('show');
+                }
+            }
+        }
+
+        function goBack() {
+            if (navigationStack.length > 0) {
+                const previousPage = navigationStack.pop();
+                currentPage = previousPage;
+                
+                document.querySelectorAll('.page').forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                document.getElementById(previousPage + 'Page').classList.add('active');
+                
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const pageIndex = ['lessons', 'strategies', 'family', 'news', 'analytics', 'support'].indexOf(previousPage);
+                if (pageIndex !== -1) {
+                    document.querySelectorAll('.nav-item')[pageIndex].classList.add('active');
+                }
+                
+                updateBackButton();
+                
+                if (previousPage === 'strategies') {
+                    setTimeout(() => {
+                        initTradingViewChart('mainChart');
+                    }, 100);
+                }
+            }
+        }
+
+        // Функция приглашения друга
+        function inviteFriend() {
+            const inviteLink = `https://t.me/TersaaMtBot?start=${userProfile?.firstName || 'user'}_invite`;
+            const message = `🚀 Присоединяйся к TersaaMt!\n\nТорговые стратегии с реальными данными Binance по авторской методике Шахруза.\n\n${inviteLink}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'TersaaMt - Торговые стратегии',
+                    text: message,
+                    url: inviteLink
+                });
+            } else {
+                navigator.clipboard.writeText(message).then(() => {
+                    tg.showAlert('Ссылка скопирована в буфер обмена!');
+                }).catch(() => {
+                    tg.showAlert(`Поделитесь ссылкой:\n${inviteLink}`);
+                });
+            }
+        }
+
+        // Инициализация TradingView графика
+        function initTradingViewChart(containerId) {
+            if (typeof TradingView !== 'undefined') {
+                const chartStyle = currentChartType === 'candles' ? "1" : "8";
+                
+                new TradingView.widget({
+                    "width": "100%",
+                    "height": 500,
+                    "symbol": `BINANCE:${currentCoin}`,
+                    "interval": "15",
+                    "timezone": "Asia/Tashkent",
+                    "theme": "dark",
+                    "style": chartStyle,
+                    "locale": currentLanguage,
+                    "toolbar_bg": "#0a0e27",
+                    "enable_publishing": false,
+                    "withdateranges": true,
+                    "range": "3D",
+                    "hide_side_toolbar": false,
+                    "allow_symbol_change": true,
+                    "details": true,
+                    "hotlist": true,
+                    "calendar": true,
+                    "studies": [
+                        "MASimple@tv-basicstudies"
+                    ],
+                    "container_id": containerId,
+                    "studies_overrides": {
+                        "MASimple.length": 14,
+                        "MASimple.plot.color": "#00c851"
+                    },
+                    "overrides": {
+                        "paneProperties.background": "#0a0e27",
+                        "paneProperties.vertGridProperties.color": "#2a2f4a",
+                        "paneProperties.horzGridProperties.color": "#2a2f4a",
+                        "symbolWatermarkProperties.transparency": 90,
+                        "scalesProperties.textColor": "#ffffff",
+                        "mainSeriesProperties.candleStyle.upColor": "#00c851",
+                        "mainSeriesProperties.candleStyle.downColor": "#ff4444",
+                        "mainSeriesProperties.candleStyle.drawWick": true,
+                        "mainSeriesProperties.candleStyle.drawBorder": true,
+                        "mainSeriesProperties.candleStyle.borderColor": "#378658",
+                        "mainSeriesProperties.candleStyle.borderUpColor": "#00c851",
+                        "mainSeriesProperties.candleStyle.borderDownColor": "#ff4444",
+                        "mainSeriesProperties.candleStyle.wickUpColor": "#00c851",
+                        "mainSeriesProperties.candleStyle.wickDownColor": "#ff4444",
+                        "mainSeriesProperties.barStyle.upColor": "#00c851",
+                        "mainSeriesProperties.barStyle.downColor": "#ff4444"
+                    }
+                });
+            }
+        }
+
+        // Функции для работы с монетами
+        function selectCoin(symbol) {
+            currentCoin = symbol;
+            
+            document.querySelectorAll('.coin-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeCoin = document.querySelector(`[data-coin="${symbol}"]`);
+            if (activeCoin) activeCoin.classList.add('active');
+            
+            if (strategyManager) {
+                strategyManager.setSymbol(symbol);
+            }
+            
+            setTimeout(() => {
+                initTradingViewChart('mainChart');
+            }, 100);
+        }
+
+        // Функции для работы с профилем
+        function showProfile() {
+            if (!userProfile) {
+                tg.showAlert('Профиль не загружен');
+                return;
+            }
+            
+            const experienceMap = {
+                'beginner': 'Новичок (0-6 месяцев)',
+                'intermediate': 'Средний (6 месяцев - 2 года)',
+                'advanced': 'Продвинутый (2-5 лет)',
+                'expert': 'Эксперт (5+ лет)'
+            };
+            
+            const registrationDate = new Date(userProfile.timestamp);
+            const diffDays = Math.ceil(Math.abs(new Date() - registrationDate) / (1000 * 60 * 60 * 24));
+            const hasPremium = localStorage.getItem('premiumAccess') === 'true';
+            const strategiesUsed = localStorage.getItem('strategiesUsedCount') || '0';
+            const signalsReceived = localStorage.getItem('userSignalsCount') || '0';
+            
+            const profileText = `👤 ПРОФИЛЬ
+
+Имя: ${userProfile.firstName} ${userProfile.lastName}
+Год рождения: ${userProfile.birthYear}
+Опыт: ${experienceMap[userProfile.experience] || userProfile.experience}
+
+📊 СТАТИСТИКА
+Дней в системе: ${diffDays}
+Использовано стратегий: ${strategiesUsed}
+Получено сигналов: ${signalsReceived}
+Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
+
+Регистрация: ${registrationDate.toLocaleDateString('ru-RU')}`;
+            
+            tg.showAlert(profileText);
+        }
+
+        // Функция показа видео уроков
+        function showVideos() {
+            tg.showAlert(`📚 ВИДЕО УРОКИ
+
+Скоро здесь будут доступны обучающие видеоуроки по:
+
+• Авторской методике Шахруза
+• Логике тройного движения
+• Построению трендовых линий и каналов
+• Использованию стратегии MA14
+• Управлению рисками в торговле
+
+Следите за обновлениями!`);
+        }
+
+        // Функции для настроек
+        function toggleSettingsDropdown() {
+            const dropdown = document.getElementById('settingsDropdown');
+            if (dropdown) {
+                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            }
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('selectedLanguage', lang);
+            toggleSettingsDropdown();
+            tg.showAlert(`Язык изменен на: ${lang}`);
+        }
+
+        function setChartType(type) {
+            currentChartType = type;
+            localStorage.setItem('chartType', type);
+            if (currentPage === 'strategies') {
+                setTimeout(() => {
+                    initTradingViewChart('mainChart');
+                }, 100);
+            }
+            tg.showAlert(`Тип графика изменен на: ${type === 'candles' ? 'Японские свечи' : 'Бары'}`);
+            toggleSettingsDropdown();
+        }
+
+        function activatePromo() {
+            const promoInput = document.getElementById('promoInput');
+            if (!promoInput) return;
+            
+            const promoCode = promoInput.value.trim();
+            
+            if (['TERSAAMT2024', 'SHAHRUZA', 'PREMIUM', 'VIP'].includes(promoCode.toUpperCase())) {
+                tg.showAlert('🎉 Промокод активирован! Вы получили доступ к премиум функциям!');
+                localStorage.setItem('premiumAccess', 'true');
+                promoInput.value = '';
+            } else if (promoCode === '') {
+                tg.showAlert('❌ Введите промокод');
+            } else {
+                tg.showAlert('❌ Неверный промокод');
+            }
+            toggleSettingsDropdown();
+        }
+
+        function showFAQ() {
+            toggleSettingsDropdown();
+            tg.showAlert(`❓ FAQ:
+
+1. 📈 Как работают стратегии?
+   Все стратегии работают по авторской методике Шахруза с реальными данными Binance
+
+2. 🎯 Что такое тройное движение?
+   Авторская логика построения трендовых линий и каналов
+
+3. 🟢🔴 Что означают сигналы?
+   BUY/SELL - рекомендации на основе анализа MA14
+   BREAKOUT/BREAKDOWN - пробои трендовых линий/каналов
+
+4. 🎁 Как активировать промокод?
+   Откройте настройки и введите: TERSAAMT2024, SHAHRUZA, PREMIUM, VIP
+
+5. 🆘 Поддержка:
+   Обращайтесь через раздел "Поддержка"`);
+        }
+
+        // Обработка формы поддержки
+        const supportForm = document.getElementById('supportForm');
+        if (supportForm) {
+            supportForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const supportData = {
+                    name: document.getElementById('supportName').value,
+                    subject: document.getElementById('supportSubject').value,
+                    description: document.getElementById('supportDescription').value,
+                    userProfile: userProfile,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Сохраняем в Firebase если доступен
+                try {
+                    if (window.db && window.firestoreUtils) {
+                        await window.firestoreUtils.addDoc(
+                            window.firestoreUtils.collection(window.db, 'support_requests'), 
+                            supportData
+                        );
+                    }
+                } catch (error) {
+                    console.error('Ошибка сохранения запроса:', error);
+                }
+
+                tg.sendData(JSON.stringify(supportData));
+                tg.showAlert('Ваш запрос отправлен! Мы свяжемся с вами в ближайшее время.');
+                supportForm.reset();
+                
+                // Восстанавливаем имя пользователя
+                document.getElementById('supportName').value = `${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`.trim();
+            });
+        }
+
+        // Закрытие dropdown при клике вне его
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('settingsDropdown');
+            const settingsBtn = document.querySelector('.settings-btn');
+            
+            if (dropdown && settingsBtn && !dropdown.contains(e.target) && !settingsBtn.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Обработка данных Telegram WebApp
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+            const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
+            
+            if (telegramUser.first_name) {
+                const firstNameInput = document.getElementById('firstName');
+                if (firstNameInput) firstNameInput.value = telegramUser.first_name;
+            }
+            if (telegramUser.last_name) {
+                const lastNameInput = document.getElementById('lastName');
+                if (lastNameInput) lastNameInput.value = telegramUser.last_name;
+            }
+        }
+
+        // Инициализация при загрузке
+        window.addEventListener('load', () => {
+            checkAuth();
+            initParticles();
+            
+            const savedLanguage = localStorage.getItem('selectedLanguage');
+            if (savedLanguage) {
+                currentLanguage = savedLanguage;
+            }
+            
+            const savedChartType = localStorage.getItem('chartType');
+            if (savedChartType) {
+                currentChartType = savedChartType;
+            }
+        });
+
+        // Инициализация основного TradingView графика
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const mainChart = document.getElementById('mainChart');
+                if (mainChart) {
+                    initTradingViewChart('mainChart');
+                }
+            }, 2000);
+        });
+
+        console.log('TersaaMt Trading App v10.0 - Исправленная версия готова! 🚀');
+    </script>
+
+<script type="module" src="js/dragon-animation.js"></script>
+
+<script type="module" src="js/main.js"></script>
+
+    <!-- Canvas Strategies Script (injected) -->
+    <script>
+    (function(){
+      // State
+      let currentStrategy = null;
+      let currentSymbol = 'BTCUSDT';
+      let currentTimeframe = '15m';
+      let candlesData = [];
+      let canvas = null, ctx = null;
+
+      const PADDING = { top: 40, right: 100, bottom: 40, left: 10 };
+
+      // Hook strategy cards if present: (cards have onclick=showStrategy('...'))
+
+      // Strategy entry point
+      window.showStrategy = function(strategy){
+        currentStrategy = strategy;
+        const titles = { ma14:'MA14 (D1 Only)', trendline:'Пробой трендовой линии', channel:'Трендовый канал' };
+        const pageList = ['lessonsPage','strategiesPage','familyPage','newsPage','analyticsPage','supportPage'];
+        pageList.forEach(id => { const el=document.getElementById(id); if (el) el.classList.remove('active'); });
+        const detail = document.getElementById('strategyDetail');
+        if (detail) detail.classList.add('active');
+
+        const titleEl = document.getElementById('strategyDetailTitle');
+        if (titleEl) titleEl.textContent = titles[strategy] || 'Стратегия';
+
+        // Render controls + canvas inside #strategyDetailContent
+        const wrapper = document.getElementById('strategyDetailContent');
+        if (wrapper){
+          wrapper.innerHTML = `
+            <div class="chart-controls">
+              <select id="coinSelect" onchange="updateStrategyChart()">
+                <option value="BTCUSDT">Bitcoin (BTC/USDT)</option>
+                <option value="ETHUSDT">Ethereum (ETH/USDT)</option>
+                <option value="BNBUSDT">Binance Coin (BNB/USDT)</option>
+                <option value="SOLUSDT">Solana (SOL/USDT)</option>
+                <option value="XRPUSDT">XRP (XRP/USDT)</option>
+                <option value="ADAUSDT">Cardano (ADA/USDT)</option>
+              </select>
+              <select id="timeframeSelect" onchange="updateStrategyChart()">
+                <option value="15m" selected>15 минут</option>
+                <option value="1h">1 час</option>
+                <option value="4h">4 часа</option>
+                <option value="1d">1 день (D1)</option>
+              </select>
+              <button onclick="updateStrategyChart()">🔄 Обновить</button>
+              <div style="margin-left:auto;color:#4facfe;font-size:12px;" id="chartStatus">Готов</div>
+            </div>
+            <div id="signalDetailBox" class="signal-detail-box" style="display:none;">
+              <h3>Текущий сигнал:</h3>
+              <div id="signalDetailContent"></div>
+            </div>
+            <div class="chart-info-bar">
+              <span id="priceRange">Range: -</span>
+              <span id="candleCount">Candles: -</span>
+              <span id="currentPrice">Current: -</span>
+            </div>
+            <div class="canvas-container"><canvas id="strategyCanvas"></canvas></div>
+          `;
+        }
+
+        const tfSelect = document.getElementById('timeframeSelect');
+        if (tfSelect){
+          if (strategy === 'ma14'){ tfSelect.value = '1d'; tfSelect.disabled = true; currentTimeframe = '1d'; }
+          else { tfSelect.disabled = false; tfSelect.value = '15m'; currentTimeframe = '15m'; }
+        }
+
+        canvas = document.getElementById('strategyCanvas');
+        if (canvas){ ctx = canvas.getContext('2d'); resizeCanvas(); }
+        updateStrategyChart();
+      };
+
+      window.goBackToStrategies = function(){
+        const detail = document.getElementById('strategyDetail');
+        const strategies = document.getElementById('strategiesPage');
+        if (detail) detail.classList.remove('active');
+        if (strategies) strategies.classList.add('active');
+      };
+
+      function resizeCanvas(){
+        if (!canvas) return;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = (rect.width - 20) || 1180;
+        canvas.height = 500;
+      }
+      window.addEventListener('resize', ()=>{ if (canvas){ resizeCanvas(); if (candlesData.length) drawChart(); } });
+
+      async function updateStrategyChart(){
+        const coinSel = document.getElementById('coinSelect');
+        const tfSel = document.getElementById('timeframeSelect');
+        if (coinSel) currentSymbol = coinSel.value;
+        if (tfSel) currentTimeframe = tfSel.value;
+        if (currentStrategy === 'ma14') currentTimeframe = '1d';
+
+        const limit = currentStrategy === 'ma14' ? 60 : 300;
+        setStatus('Загрузка данных...');
+        candlesData = await fetchData(currentSymbol, currentTimeframe, limit);
+        if (!candlesData.length){ setStatus('✗ Ошибка загрузки'); return; }
+        drawChart();
+        const res = analyzeStrategy(candlesData, currentStrategy);
+        displaySignalDetail(res);
+        setStatus('✓ Готово');
+      }
+      window.updateStrategyChart = updateStrategyChart;
+
+      function setStatus(msg){
+        const s = document.getElementById('chartStatus'); if (s) s.textContent = msg;
+      }
+
+      async function fetchData(symbol, interval, limit){
+        try{
+          const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          return data.map(k => ({ time:k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }));
+        }catch(e){
+          console.error('Fetch error', e);
+          return [];
+        }
+      }
+
+      function drawChart(){
+        if (!ctx || !candlesData.length) return;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#0a0e27'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        const chartW = canvas.width - PADDING.left - PADDING.right;
+        const chartH = canvas.height - PADDING.top - PADDING.bottom;
+        const minP = Math.min(...candlesData.map(c=>c.low));
+        const maxP = Math.max(...candlesData.map(c=>c.high));
+        const range = (maxP - minP) || 1;
+        const toX = i => PADDING.left + (i/(candlesData.length-1))*chartW;
+        const toY = p => PADDING.top + chartH - ((p - minP)/range)*chartH;
+
+        // info
+        const pr = document.getElementById('priceRange');
+        const cc = document.getElementById('candleCount');
+        const cp = document.getElementById('currentPrice');
+        if (pr) pr.textContent = `Range: $${minP.toFixed(2)} - $${maxP.toFixed(2)}`;
+        if (cc) cc.textContent = `Candles: ${candlesData.length}`;
+        if (cp) cp.textContent = `Current: $${candlesData[candlesData.length-1].close.toFixed(2)}`;
+
+        // grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth=1; ctx.font='11px monospace'; ctx.fillStyle='#6b7280';
+        for (let i=0;i<=5;i++){ const y = PADDING.top + (chartH/5)*i; ctx.beginPath(); ctx.moveTo(PADDING.left,y); ctx.lineTo(canvas.width-PADDING.right,y); ctx.stroke(); }
+
+        // candles
+        const cw = max(2, (chartW / candlesData.length)*0.7);
+        function max(a,b){ return a>b?a:b; }
+        candlesData.forEach((c,i)=>{
+          const x = toX(i), oY=toY(c.open), cY=toY(c.close), hY=toY(c.high), lY=toY(c.low);
+          const green = c.close >= c.open; const color = green ? '#26a69a' : '#ef5350';
+          ctx.strokeStyle=color; ctx.beginPath(); ctx.moveTo(x,hY); ctx.lineTo(x,lY); ctx.stroke();
+          ctx.fillStyle=color; ctx.fillRect(x-cw/2, Math.min(oY,cY), cw, Math.max(1, Math.abs(cY-oY)));
+        });
+
+        if (currentStrategy === 'ma14') drawMA14(toX,toY);
+        if (currentStrategy === 'trendline') drawTrendline(toX,toY);
+        if (currentStrategy === 'channel') drawChannel(toX,toY);
+      }
+
+      function drawMA14(toX,toY){
+        if (candlesData.length < 14) return;
+        const ma=[]; for (let i=13;i<candlesData.length;i++){ let s=0; for (let j=i-13;j<=i;j++) s+=candlesData[j].close; ma.push({index:i,value:s/14}); }
+        ctx.strokeStyle='#00c851'; ctx.lineWidth=3; ctx.beginPath();
+        ma.forEach((p,k)=>{ const x=toX(p.index), y=toY(p.value); if(k===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+        ctx.stroke();
+      }
+
+      function drawTrendline(toX,toY){
+        const res = analyzeTrendline(candlesData);
+        if (!res.pattern || res.pattern.length<4) return;
+        res.pattern.forEach(p=>{ ctx.fillStyle='#ff6b35'; ctx.beginPath(); ctx.arc(toX(p.index), toY(p.price), 6, 0, Math.PI*2); ctx.fill(); });
+        const p1 = res.pattern[1], p2 = res.pattern[3];
+        ctx.strokeStyle='#ff6b35'; ctx.lineWidth=3; ctx.setLineDash([8,4]); ctx.beginPath();
+        ctx.moveTo(toX(p1.index), toY(p1.price)); ctx.lineTo(toX(p2.index), toY(p2.price));
+        const slope = (p2.price - p1.price)/(p2.index - p1.index);
+        const ext = p2.price + slope * ((candlesData.length-1) - p2.index);
+        ctx.lineTo(toX(candlesData.length-1), toY(ext)); ctx.stroke(); ctx.setLineDash([]);
+      }
+
+      function drawChannel(toX,toY){
+        const res = analyzeChannel(candlesData);
+        if (!res.channel || !res.channel.points) return;
+        const pts = res.channel.points;
+        pts.forEach(p=>{ ctx.fillStyle='#9c27b0'; ctx.beginPath(); ctx.arc(toX(p.index), toY(p.price), 6, 0, Math.PI*2); ctx.fill(); });
+        const slope = (pts[2].price - pts[0].price)/(pts[2].index - pts[0].index);
+        const offset = pts[1].price - (pts[0].price + slope*(pts[1].index - pts[0].index));
+        ctx.strokeStyle='#9c27b0'; ctx.lineWidth=3;
+
+        // upper
+        ctx.beginPath();
+        ctx.moveTo(toX(pts[0].index), toY(pts[0].price));
+        ctx.lineTo(toX(pts[2].index), toY(pts[2].price));
+        const upExt = pts[2].price + slope * ((candlesData.length-1) - pts[2].index);
+        ctx.lineTo(toX(candlesData.length-1), toY(upExt));
+        ctx.stroke();
+
+        // lower (parallel through point 2)
+        ctx.beginPath();
+        const l1 = pts[0].price + offset; const l3 = pts[2].price + offset; const lExt = upExt + offset;
+        ctx.moveTo(toX(pts[0].index), toY(l1)); ctx.lineTo(toX(pts[2].index), toY(l3)); ctx.lineTo(toX(candlesData.length-1), toY(lExt));
+        ctx.stroke();
+      }
+
+      // --- Analysis ---
+      function analyzeStrategy(candles, strategy){
+        if (strategy === 'ma14') return analyzeMA14(candles);
+        if (strategy === 'trendline') return analyzeTrendline(candles);
+        if (strategy === 'channel') return analyzeChannel(candles);
+        return { signal:'WAIT', reason:'Unknown' };
+      }
+
+      function analyzeMA14(candles){
+        if (candles.length < 17) return { signal:'WAIT', reason:'Недостаточно данных' };
+        const ma=[]; for (let i=13;i<candles.length;i++){ let s=0; for (let j=i-13;j<=i;j++) s+=candles[j].close; ma.push(s/14); }
+        const l3 = candles.slice(-3);
+        const above = l3.every((c,i)=> c.close > ma[ma.length-3+i]);
+        const below = l3.every((c,i)=> c.close < ma[ma.length-3+i]);
+        const price = candles[candles.length-1].close;
+        if (above) return { signal:'BUY', reason:'3 свечи выше MA14', price, confidence:85 };
+        if (below) return { signal:'SELL', reason:'3 свечи ниже MA14', price, confidence:85 };
+        return { signal:'NEUTRAL', reason:'Нет подтверждения', price, confidence:40 };
+      }
+
+      function findSwingPoints(candles, lookback=5){
+        const swings=[];
+        for (let i=lookback;i<candles.length-lookback;i++){
+          let isHigh=true, isLow=true;
+          for (let j=i-lookback;j<=i+lookback;j++){
+            if (j===i) continue;
+            if (candles[j].high >= candles[i].high) isHigh=false;
+            if (candles[j].low  <= candles[i].low ) isLow=false;
+            if (!isHigh && !isLow) break;
+          }
+          if (isHigh) swings.push({ index:i, price:candles[i].high, type:'high' });
+          if (isLow ) swings.push({ index:i, price:candles[i].low , type:'low'  });
+        }
+        return swings;
+      }
+
+      function analyzeTrendline(candles){
+        const swings = findSwingPoints(candles);
+        if (swings.length < 4) return { signal:'WAIT', reason:'Недостаточно swing точек' };
+        for (let i=swings.length-1;i>=3;i--){
+          if (swings[i].type!=='low') continue;
+          for (let j=i-1;j>=2;j--){
+            if (swings[j].type!=='high') continue;
+            for (let k=j-1;k>=1;k--){
+              if (swings[k].type!=='low') continue;
+              for (let l=k-1;l>=0;l--){
+                if (swings[l].type!=='high') continue;
+                if (swings[j].price > swings[l].price){
+                  const price = candles[candles.length-1].close;
+                  const slope = (swings[i].price - swings[k].price)/(swings[i].index - swings[k].index);
+                  const trendPrice = swings[i].price + slope*((candles.length-1) - swings[i].index);
+                  const dist = Math.abs(price - trendPrice)/trendPrice*100;
+                  const pattern = [swings[l],swings[k],swings[j],swings[i]];
+                  if (dist < 1) return { signal:'TOUCH', reason:'Касание линии', price, confidence:75, pattern };
+                  if (price < trendPrice*0.995) return { signal:'BREAKDOWN', reason:'Пробой вниз', price, confidence:80, pattern };
+                  return { signal:'HOLD', reason:'Выше линии', price, confidence:60, pattern };
+                }
+              }
+            }
+          }
+        }
+        return { signal:'NEUTRAL', reason:'Паттерн не найден', confidence:20 };
+      }
+
+      function analyzeChannel(candles){
+        const swings = findSwingPoints(candles);
+        if (swings.length < 3) return { signal:'WAIT', reason:'Недостаточно точек' };
+        for (let i=swings.length-1;i>=2;i--){
+          if (swings[i].type!=='high') continue;
+          for (let j=i-1;j>=1;j--){
+            if (swings[j].type!=='low') continue;
+            for (let k=j-1;k>=0;k--){
+              if (swings[k].type!=='high') continue;
+              if (swings[i].price > swings[k].price){
+                const price = candles[candles.length-1].close;
+                const slope = (swings[i].price - swings[k].price)/(swings[i].index - swings[k].index);
+                const upper = swings[i].price + slope*((candles.length-1) - swings[i].index);
+                const mainAtLow = swings[k].price + slope*(swings[j].index - swings[k].index);
+                const offset = swings[j].price - mainAtLow;
+                const lower = upper + offset;
+                const pos = (price - lower)/(upper - lower);
+                const channel = { upper, lower, points:[swings[k],swings[j],swings[i]] };
+                if (pos >= 0.9) return { signal:'SELL', reason:'У верхней границы', price, confidence:70, channel };
+                if (pos <= 0.1) return { signal:'BUY', reason:'У нижней границы', price, confidence:70, channel };
+                if (price > upper) return { signal:'BREAKOUT', reason:'Пробой вверх', price, confidence:85, channel };
+                if (price < lower) return { signal:'BREAKDOWN', reason:'Пробой вниз', price, confidence:85, channel };
+                return { signal:'HOLD', reason:'Внутри канала', price, confidence:50, channel };
+              }
+            }
+          }
+        }
+        return { signal:'NEUTRAL', reason:'Канал не найден', confidence:30 };
+      }
+
+      function displaySignalDetail(result){
+        const box = document.getElementById('signalDetailBox');
+        const content = document.getElementById('signalDetailContent');
+        if (!box || !content) return;
+        box.style.display = 'block';
+        let html = `<div class="signal-badge signal-${result.signal.toLowerCase()}">${result.signal}</div>`;
+        html += `<p><strong>Причина:</strong> ${result.reason || '-'}</p>`;
+        if (result.price) html += `<p><strong>Цена:</strong> $${(+result.price).toFixed(2)}</p>`;
+        if (result.confidence) html += `<p><strong>Уверенность:</strong> ${result.confidence}%</p>`;
+        content.innerHTML = html;
+      }
+    })();
+    </script>
+
+</body>
+</html> 
