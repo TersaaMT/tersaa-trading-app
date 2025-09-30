@@ -5,13 +5,13 @@ const canvas = document.getElementById("dragonCanvas");
 const parent = canvas ? canvas.parentElement : document.body;
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setSize(parent.offsetWidth, parent.offsetHeight);
+renderer.setSize(parent.offsetWidth, 300); // фиксированная высота
 renderer.setPixelRatio(window.devicePixelRatio || 1);
 renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, parent.offsetWidth / parent.offsetHeight, 0.1, 1000);
-camera.position.set(0, 0, 2.2);
+const camera = new THREE.PerspectiveCamera(45, parent.offsetWidth / 300, 0.1, 1000);
+camera.position.set(0, 0, 1.5); // ближе
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableZoom = false;
@@ -19,11 +19,9 @@ controls.enablePan = false;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.6;
 
-// === адаптивный масштаб ===
-let baseScale = window.innerWidth < 768 ? 0.45 : 0.6;
+// меньший масштаб
+let baseScale = window.innerWidth < 768 ? 0.25 : 0.35;
 
-
-// === Материалы контуров ===
 function makeLineMaterial(r, g, b) {
   return new THREE.ShaderMaterial({
     uniforms: { time: { value: 0.0 } },
@@ -48,7 +46,6 @@ function makeLineMaterial(r, g, b) {
 const greenLineMaterial = makeLineMaterial(0.0, 1.0, 0.0);
 const redLineMaterial   = makeLineMaterial(1.0, 0.0, 0.0);
 
-// === Материалы ауры ===
 function makeEnergyMaterial(r, g, b) {
   return new THREE.ShaderMaterial({
     uniforms: { time: { value: 0.0 } },
@@ -92,21 +89,18 @@ function makeEnergyMaterial(r, g, b) {
   });
 }
 
-// === Группы ===
 const greenGroup = new THREE.Group();
 scene.add(greenGroup);
 const redGroup = new THREE.Group();
 redGroup.scale.set(0, 0, 0);
 scene.add(redGroup);
 
-// === Ауры ===
 const greenAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.95, 64, 64), makeEnergyMaterial(0.0, 1.0, 0.0));
 greenGroup.add(greenAura);
 
 const redAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.45, 64, 64), makeEnergyMaterial(1.0, 0.0, 0.0));
 redGroup.add(redAura);
 
-// === Континенты ===
 fetch("https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json")
   .then(res => res.json())
   .then(data => {
@@ -134,7 +128,6 @@ fetch("https://raw.githubusercontent.com/johan/world.geo.json/master/countries.g
     });
   });
 
-// === Анимация ===
 const appearDuration = 2.0;
 let startTime = null;
 
@@ -145,7 +138,7 @@ function animate(t) {
   const elapsed = time - startTime;
   const progress = Math.min(elapsed / appearDuration, 1);
 
- const scale = THREE.MathUtils.lerp(0, 0.5, progress);
+  const scale = THREE.MathUtils.lerp(0, 0.5, progress);
   redGroup.scale.set(scale, scale, scale);
 
   greenLineMaterial.uniforms.time.value = time;
@@ -161,11 +154,15 @@ animate();
 
 window.addEventListener("resize", () => {
   const width = parent.offsetWidth;
-  const height = parent.offsetHeight;
+  const height = 300;
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
 
-  // пересчитываем размер при ресайзе
- baseScale = window.innerWidth < 768 ? 0.45 : 0.6;
+  baseScale = window.innerWidth < 768 ? 0.25 : 0.35;
+  
+  greenAura.geometry.dispose();
+  redAura.geometry.dispose();
+  greenAura.geometry = new THREE.SphereGeometry(baseScale * 0.95, 64, 64);
+  redAura.geometry = new THREE.SphereGeometry(baseScale * 0.45, 64, 64);
 });
