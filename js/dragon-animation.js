@@ -11,7 +11,7 @@ renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, parent.offsetWidth / parent.offsetHeight, 0.1, 1000);
-camera.position.set(0, 0, 3);
+camera.position.set(0, 0, 2.2);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableZoom = false;
@@ -20,7 +20,7 @@ controls.autoRotate = true;
 controls.autoRotateSpeed = 0.6;
 
 // === адаптивный масштаб ===
-let baseScale = window.innerWidth < 768 ? 0.25 : 0.45;
+let baseScale = window.innerWidth < 768 ? 0.45 : 0.6;
 
 
 // === Материалы контуров ===
@@ -100,10 +100,10 @@ redGroup.scale.set(0, 0, 0);
 scene.add(redGroup);
 
 // === Ауры ===
-const greenAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale, 64, 64), makeEnergyMaterial(0.0, 1.0, 0.0));
+const greenAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.95, 64, 64), makeEnergyMaterial(0.0, 1.0, 0.0));
 greenGroup.add(greenAura);
 
-const redAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.5, 64, 64), makeEnergyMaterial(1.0, 0.0, 0.0));
+const redAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.45, 64, 64), makeEnergyMaterial(1.0, 0.0, 0.0));
 redGroup.add(redAura);
 
 // === Континенты ===
@@ -145,7 +145,7 @@ function animate(t) {
   const elapsed = time - startTime;
   const progress = Math.min(elapsed / appearDuration, 1);
 
-  const scale = THREE.MathUtils.lerp(0, baseScale * 1.4, progress); 
+ const scale = THREE.MathUtils.lerp(0, 0.5, progress);
   redGroup.scale.set(scale, scale, scale);
 
   greenLineMaterial.uniforms.time.value = time;
@@ -167,5 +167,5 @@ window.addEventListener("resize", () => {
   renderer.setSize(width, height);
 
   // пересчитываем размер при ресайзе
-  baseScale = window.innerWidth < 768 ? 0.15 : 0.25;
+ baseScale = window.innerWidth < 768 ? 0.45 : 0.6;
 });

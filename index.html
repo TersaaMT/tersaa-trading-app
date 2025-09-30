@@ -23,7 +23,22 @@
       .signal-badge.signal-buy { background: rgba(0,200,81,.15); color:#00c851; }
       .signal-badge.signal-sell { background: rgba(239,83,80,.15); color:#ef5350; }
       .signal-badge.signal-neutral { background: rgba(184,197,209,.15); color:#b8c5d1; }
-      .floating-back-btn { position: sticky; top: 10px; }
+      .floating-back-btn { 
+    position: fixed !important; 
+    top: 70px !important; 
+    left: 10px !important; 
+    z-index: 999 !important;
+    background: rgba(79, 172, 254, 0.2);
+    border: 2px solid #4facfe;
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+    display: none;
+}
+.floating-back-btn.show { display: block !important; }
     </style>
 
 </head>
@@ -145,7 +160,7 @@
   <div class="section" style="position:relative; height: 100vh; overflow:hidden;">
     <canvas id="dragonCanvas"></canvas>
   </div>
-</div>
+
 
 <!-- Подключаем анимацию -->
 <script type="importmap">
@@ -2512,4 +2527,4 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
     </script>
 
 </body>
-</html> 
+</html>  
