@@ -2524,6 +2524,41 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
         content.innerHTML = html;
       }
     })();
+// =============== ОБНОВЛЕНИЕ КРИПТОТИКЕРА ===============
+async function updateCryptoTicker() {
+    try {
+        const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT'];
+        const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        data.forEach(ticker => {
+            const symbol = ticker.symbol.toLowerCase().replace('usdt', '');
+            const priceEl = document.getElementById(`${symbol}Price`);
+            const changeEl = document.getElementById(`${symbol}Change`);
+            
+            if (priceEl) {
+                const price = parseFloat(ticker.lastPrice);
+                priceEl.textContent = `$${price >= 1 ? price.toFixed(2) : price.toFixed(4)}`;
+            }
+            
+            if (changeEl) {
+                const change = parseFloat(ticker.priceChangePercent);
+                changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                changeEl.className = `crypto-change ${change >= 0 ? '' : 'negative'}`;
+            }
+        });
+        
+        console.log('Цены обновлены');
+    } catch (error) {
+        console.error('Ошибка обновления цен:', error);
+    }
+}
+
+// Запускаем обновление сразу и каждые 5 секунд
+updateCryptoTicker();
+setInterval(updateCryptoTicker, 5000);
+
     </script>
 
 </body>
