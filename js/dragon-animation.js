@@ -11,16 +11,15 @@ renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, parent.offsetWidth / 300, 0.1, 1000);
-camera.position.set(0, 0, 1.2); // ближе к камере
+camera.position.set(0, 0, 1.2);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableZoom = false;
 controls.enablePan = false;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.6;
-controls.target.set(0, 0, 0); // центрируем
+controls.target.set(0, 0, 0);
 
-// увеличенный масштаб глобуса
 let baseScale = window.innerWidth < 768 ? 0.38 : 0.48;
 
 function makeLineMaterial(r, g, b) {
@@ -78,7 +77,7 @@ function makeEnergyMaterial(r, g, b) {
         float n = noise(vNormal * 5.0 + vec3(time*0.3, time*0.2, time*0.4));
         float grain = fract(sin(dot(vNormal.xy * 150.0, vec2(12.9898,78.233))) * 43758.5453 + time*5.0);
         float mask = step(0.75, grain);
-        float alpha = smoothstep(0.3, 0.8, n) * mask * 0.5; // уменьшена прозрачность с 0.8 до 0.5
+        float alpha = smoothstep(0.3, 0.8, n) * mask * 0.5;
 
         vec3 color = vec3(${r}, ${g}, ${b}) * (0.7 + 0.3 * sin(time*2.0));
         gl_FragColor = vec4(color, alpha);
@@ -91,12 +90,14 @@ function makeEnergyMaterial(r, g, b) {
 }
 
 const greenGroup = new THREE.Group();
+greenGroup.position.set(0, 0, 0); // строгое центрирование
 scene.add(greenGroup);
+
 const redGroup = new THREE.Group();
+redGroup.position.set(0, 0, 0); // строгое центрирование
 redGroup.scale.set(0, 0, 0);
 scene.add(redGroup);
 
-// уменьшенная аура (0.85 вместо 0.95)
 const greenAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.85, 64, 64), makeEnergyMaterial(0.0, 1.0, 0.0));
 greenGroup.add(greenAura);
 
@@ -157,9 +158,10 @@ animate();
 window.addEventListener("resize", () => {
   const width = parent.offsetWidth;
   const height = 300;
+  
+  renderer.setSize(width, height);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(width, height);
 
   baseScale = window.innerWidth < 768 ? 0.38 : 0.48;
   
