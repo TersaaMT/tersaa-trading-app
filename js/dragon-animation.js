@@ -90,18 +90,23 @@ function makeEnergyMaterial(r, g, b) {
 }
 
 const greenGroup = new THREE.Group();
-greenGroup.position.set(0, 0, 0); // строгое центрирование
 scene.add(greenGroup);
 
 const redGroup = new THREE.Group();
-redGroup.position.set(0, 0, 0); // строгое центрирование
 redGroup.scale.set(0, 0, 0);
 scene.add(redGroup);
 
-const greenAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.85, 64, 64), makeEnergyMaterial(0.0, 1.0, 0.0));
+// Аура СНАРУЖИ глобуса (1.08 вместо 0.85 - больше радиуса континентов)
+const greenAura = new THREE.Mesh(
+  new THREE.SphereGeometry(baseScale * 1.08, 64, 64), 
+  makeEnergyMaterial(0.0, 1.0, 0.0)
+);
 greenGroup.add(greenAura);
 
-const redAura = new THREE.Mesh(new THREE.SphereGeometry(baseScale * 0.40, 64, 64), makeEnergyMaterial(1.0, 0.0, 0.0));
+const redAura = new THREE.Mesh(
+  new THREE.SphereGeometry(baseScale * 0.52, 64, 64), 
+  makeEnergyMaterial(1.0, 0.0, 0.0)
+);
 redGroup.add(redAura);
 
 fetch("https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json")
@@ -167,6 +172,6 @@ window.addEventListener("resize", () => {
   
   greenAura.geometry.dispose();
   redAura.geometry.dispose();
-  greenAura.geometry = new THREE.SphereGeometry(baseScale * 0.85, 64, 64);
-  redAura.geometry = new THREE.SphereGeometry(baseScale * 0.40, 64, 64);
+  greenAura.geometry = new THREE.SphereGeometry(baseScale * 1.08, 64, 64);
+  redAura.geometry = new THREE.SphereGeometry(baseScale * 0.52, 64, 64);
 });
