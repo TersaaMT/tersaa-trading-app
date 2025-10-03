@@ -4,13 +4,17 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const canvas = document.getElementById("dragonCanvas");
 const parent = canvas ? canvas.parentElement : document.body;
 
+// Устанавливаем размеры canvas
+const canvasWidth = parent.offsetWidth;
+const canvasHeight = 300;
+
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setSize(parent.offsetWidth, 300);
+renderer.setSize(canvasWidth, canvasHeight);
 renderer.setPixelRatio(window.devicePixelRatio || 1);
 renderer.setClearColor(0x000000, 0);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, parent.offsetWidth / 300, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(45, canvasWidth / canvasHeight, 0.1, 1000);
 camera.position.set(0, 0, 1.2);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -96,7 +100,7 @@ const redGroup = new THREE.Group();
 redGroup.scale.set(0, 0, 0);
 scene.add(redGroup);
 
-// Аура СНАРУЖИ глобуса (1.08 вместо 0.85 - больше радиуса континентов)
+// Аура снаружи глобуса
 const greenAura = new THREE.Mesh(
   new THREE.SphereGeometry(baseScale * 1.08, 64, 64), 
   makeEnergyMaterial(0.0, 1.0, 0.0)
