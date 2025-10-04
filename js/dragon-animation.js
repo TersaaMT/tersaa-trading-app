@@ -7,6 +7,7 @@ const parent = canvas ? canvas.parentElement : document.body;
 // Устанавливаем размеры canvas
 const canvasWidth = parent.offsetWidth;
 const canvasHeight = 300;
+canvas.style.margin = '0 auto';
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setSize(canvasWidth, canvasHeight);
@@ -167,6 +168,7 @@ animate();
 window.addEventListener("resize", () => {
   const width = parent.offsetWidth;
   const height = 300;
+  canvas.style.margin = '0 auto';
   
   renderer.setSize(width, height);
   camera.aspect = width / height;
