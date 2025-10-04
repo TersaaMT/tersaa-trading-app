@@ -103,13 +103,13 @@ scene.add(redGroup);
 
 // Аура снаружи глобуса
 const greenAura = new THREE.Mesh(
-  new THREE.SphereGeometry(baseScale * 1.08, 64, 64), 
+  new THREE.SphereGeometry(baseScale * 1.02, 64, 64), 
   makeEnergyMaterial(0.0, 1.0, 0.0)
 );
 greenGroup.add(greenAura);
 
 const redAura = new THREE.Mesh(
-  new THREE.SphereGeometry(baseScale * 0.52, 64, 64), 
+  new THREE.SphereGeometry(baseScale * 0.51, 64, 64), 
   makeEnergyMaterial(1.0, 0.0, 0.0)
 );
 redGroup.add(redAura);
@@ -178,6 +178,6 @@ window.addEventListener("resize", () => {
   
   greenAura.geometry.dispose();
   redAura.geometry.dispose();
-  greenAura.geometry = new THREE.SphereGeometry(baseScale * 1.08, 64, 64);
-  redAura.geometry = new THREE.SphereGeometry(baseScale * 0.52, 64, 64);
+  greenAura.geometry = new THREE.SphereGeometry(baseScale * 1.02, 64, 64);
+redAura.geometry = new THREE.SphereGeometry(baseScale * 0.51, 64, 64);
 });
