@@ -26,7 +26,7 @@
 .floating-back-btn { 
     position: fixed !important; 
     top: 20px !important; 
-    right: 50px !important;
+    right: 90px !important;
     z-index: 999 !important;
     background: transparent;
     border: none;
@@ -116,11 +116,10 @@
         </div>
     </div>
 
-    <!-- Плавающая кнопка "Назад" -->
-    <button class="floating-back-btn" id="floatingBackBtn" onclick="goBack()">
+<!-- Плавающая кнопка "Назад" -->
+    <button class="floating-back-btn" id="floatingBackBtn" onclick="goBack()" style="position: fixed !important; top: 20px !important; right: 50px !important; z-index: 999 !important; background: transparent; border: none; color: #4facfe; padding: 5px; cursor: pointer; font-size: 24px; font-weight: bold;">
         ←
     </button>
-
     <!-- Экран авторизации -->
     <div id="authScreen" class="auth-screen">
         <!-- Анимированный фон с частицами -->
