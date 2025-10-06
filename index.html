@@ -44,23 +44,13 @@
 </head>
     <div class="header">
         <div class="logo">TersaaMt</div>
-        <div class="header-right">
-            <button class="invite-btn" onclick="inviteFriend()" title="Пригласить друга">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="9" cy="7" r="4" fill="currentColor"/>
-                    <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <path d="M21 21v-2a4 4 0 0 0-3-3.85" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <circle cx="18" cy="9" r="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <line x1="14" y1="14" x2="20" y2="14" stroke="currentColor" stroke-width="2"/>
-                    <line x1="17" y1="11" x2="17" y2="17" stroke="currentColor" stroke-width="2"/>
-                </svg>
-            </button>
-            <button class="invite-btn" onclick="showProfile()" title="Профиль" style="margin-right: 10px;">
-                👤
-            </button>
-            <button class="settings-btn" onclick="toggleSettingsDropdown()">⚙️</button>
-        </div>
+       <div class="header-right">
+    <button class="floating-back-btn" id="floatingBackBtn" onclick="goBack()" title="Назад">←</button>
+    <button class="invite-btn" onclick="inviteFriend()" title="Пригласить друга">...</button>
+    <button class="invite-btn" onclick="showProfile()" title="Профиль" style="margin-right: 10px;">👤</button>
+    <button class="settings-btn" onclick="toggleSettingsDropdown()">⚙️</button>
+</div>
+         
         
         <div class="settings-dropdown" id="settingsDropdown">
             <!-- Языки -->
@@ -81,7 +71,15 @@
                     <span style="margin-right: 10px;">🇯🇵</span> Japanese
                 </div>
             </div>
-
+<!-- Premium Доступ -->
+<div class="settings-section">
+    <div class="settings-title">
+        💎 Premium Доступ
+    </div>
+    <div class="settings-option" onclick="showPremiumModal()">
+        <span style="margin-right: 10px;">⭐</span> Купить Premium ($15)
+    </div>
+</div>
             <!-- Тип графика -->
             <div class="settings-section">
                 <div class="settings-title">
@@ -116,10 +114,7 @@
         </div>
     </div>
 
-<!-- Плавающая кнопка "Назад" -->
-    <button class="floating-back-btn" id="floatingBackBtn" onclick="goBack()" style="position: fixed !important; top: 20px !important; right: 50px !important; z-index: 999 !important; background: transparent; border: none; color: #4facfe; padding: 5px; cursor: pointer; font-size: 24px; font-weight: bold;">
-        ←
-    </button>
+
     <!-- Экран авторизации -->
     <div id="authScreen" class="auth-screen">
         <!-- Анимированный фон с частицами -->
@@ -2554,7 +2549,204 @@ async function updateCryptoTicker() {
 updateCryptoTicker();
 setInterval(updateCryptoTicker, 5000);
 
-    </script>
+// ============== PREMIUM PAYMENT INTEGRATION ==============
 
+const BACKEND_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000' 
+    : 'https://your-domain.com';
+
+function showPremiumModal() {
+    if (localStorage.getItem('premiumAccess') === 'true') {
+        tg.showAlert('У вас уже активирован Premium доступ! 🎉');
+        return;
+    }
+    
+    const modal = document.getElementById('premiumModal');
+    if (modal) {
+        modal.classList.add('show');
+        modal.style.display = 'flex';
+    }
+    toggleSettingsDropdown();
+}
+
+function closePremiumModal() {
+    const modal = document.getElementById('premiumModal');
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => modal.style.display = 'none', 300);
+    }
+}
+
+async function initiatePayment() {
+    const payButton = document.getElementById('payButton');
+    const statusDiv = document.getElementById('paymentStatus');
+    
+    if (!payButton || !statusDiv) return;
+    
+    try {
+        payButton.disabled = true;
+        payButton.textContent = 'Создание счёта...';
+        statusDiv.classList.add('show');
+        statusDiv.textContent = '⏳ Подготовка к оплате...';
+        
+        const response = await fetch(`${BACKEND_URL}/api/pay/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: 1500000,
+                description: 'Premium доступ TersaaMt'
+            })
+        });
+        
+        if (!response.ok) throw new Error('Ошибка создания счёта');
+        
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Неизвестная ошибка');
+        
+        localStorage.setItem('pendingOrderId', data.order_id);
+        statusDiv.textContent = '✅ Перенаправление на оплату...';
+        
+        const paymentWindow = window.open(data.pay_url, '_blank');
+        if (!paymentWindow) throw new Error('Разрешите всплывающие окна');
+        
+        checkPaymentStatus(data.order_id);
+        payButton.textContent = 'Ожидание оплаты...';
+        statusDiv.textContent = '⏳ Ожидаем подтверждение оплаты...';
+        
+    } catch (error) {
+        console.error('Ошибка:', error);
+        statusDiv.textContent = '❌ ' + error.message;
+        payButton.disabled = false;
+        payButton.textContent = 'Попробовать снова';
+    }
+}
+
+async function checkPaymentStatus(orderId) {
+    const maxAttempts = 60;
+    let attempts = 0;
+    
+    const checkInterval = setInterval(async () => {
+        try {
+            attempts++;
+            const response = await fetch(`${BACKEND_URL}/api/pay/status/${orderId}`);
+            const data = await response.json();
+            
+            if (data.success && data.order.status === 'completed') {
+                clearInterval(checkInterval);
+                onPaymentSuccess(orderId);
+            } else if (data.order.status === 'cancelled') {
+                clearInterval(checkInterval);
+                onPaymentCancelled();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkInterval);
+                onPaymentTimeout();
+            }
+        } catch (error) {
+            console.error('Ошибка проверки:', error);
+        }
+    }, 5000);
+}
+
+function onPaymentSuccess(orderId) {
+    const statusDiv = document.getElementById('paymentStatus');
+    const payButton = document.getElementById('payButton');
+    
+    localStorage.setItem('premiumAccess', 'true');
+    localStorage.setItem('premiumActivatedAt', new Date().toISOString());
+    localStorage.removeItem('pendingOrderId');
+    
+    if (statusDiv) statusDiv.textContent = '🎉 Premium успешно активирован!';
+    if (payButton) {
+        payButton.textContent = 'Закрыть';
+        payButton.disabled = false;
+        payButton.onclick = () => {
+            closePremiumModal();
+            tg.showAlert('🎉 Premium доступ активирован!\n\nТеперь вам доступны:\n✅ Все торговые стратегии\n✅ LIVE сигналы\n✅ Детальная аналитика');
+            updatePremiumFeatures();
+        };
+    }
+}
+
+function onPaymentCancelled() {
+    const statusDiv = document.getElementById('paymentStatus');
+    const payButton = document.getElementById('payButton');
+    
+    if (statusDiv) statusDiv.textContent = '❌ Платеж отменен';
+    if (payButton) {
+        payButton.textContent = 'Попробовать снова';
+        payButton.disabled = false;
+        payButton.onclick = initiatePayment;
+    }
+    localStorage.removeItem('pendingOrderId');
+}
+
+function onPaymentTimeout() {
+    const statusDiv = document.getElementById('paymentStatus');
+    const payButton = document.getElementById('payButton');
+    
+    if (statusDiv) statusDiv.textContent = '⏱️ Время ожидания истекло';
+    if (payButton) {
+        payButton.textContent = 'Проверить статус';
+        payButton.disabled = false;
+        payButton.onclick = () => {
+            const orderId = localStorage.getItem('pendingOrderId');
+            if (orderId) checkPaymentStatus(orderId);
+        };
+    }
+}
+
+function updatePremiumFeatures() {
+    console.log('✅ Premium features unlocked!');
+    if (userProfile) updateUserInterface();
+}
+
+function checkPremiumStatus() {
+    const hasPremium = localStorage.getItem('premiumAccess') === 'true';
+    if (hasPremium) console.log('✅ Premium доступ активен');
+    
+    const pendingOrderId = localStorage.getItem('pendingOrderId');
+    if (pendingOrderId) setTimeout(() => checkPaymentStatus(pendingOrderId), 1000);
+}
+
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'PAYMENT_SUCCESS') {
+        onPaymentSuccess(event.data.orderId);
+    }
+});
+
+window.addEventListener('load', checkPremiumStatus);
+
+console.log('TersaaMt Trading App v10.0 - Исправленная версия готова! 🚀');
+    </script>
+<!-- Premium Modal -->
+    <div id="premiumModal">
+        <div class="premium-content">
+            <button class="premium-close" onclick="closePremiumModal()">×</button>
+            
+            <h2 style="color: white; text-align: center; margin-bottom: 10px; font-size: 28px;">💎 Premium Доступ</h2>
+            
+            <div class="premium-price-box">
+                <div class="premium-price">$15</div>
+                <div class="premium-period">единоразовый платеж</div>
+            </div>
+            
+            <div class="premium-features">
+                <div class="premium-feature">✅ Полный доступ к стратегиям MA14</div>
+                <div class="premium-feature">✅ Тренд-анализ и каналы</div>
+                <div class="premium-feature">✅ LIVE сигналы 24/7</div>
+                <div class="premium-feature">✅ Приоритетная поддержка</div>
+                <div class="premium-feature">✅ Детальная аналитика</div>
+                <div class="premium-feature">✅ Без рекламы</div>
+            </div>
+            
+            <button id="payButton" onclick="initiatePayment()" class="premium-pay-btn">
+                Оплатить Premium
+            </button>
+            
+            <div id="paymentStatus" class="premium-status"></div>
+        </div>
+    </div>
+
+</body>
 </body>
 </html>  
