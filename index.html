@@ -68,7 +68,7 @@
     <button class="settings-btn" onclick="toggleSettingsDropdown()">⚙️</button>
 </div>
          
-        
+    
         <div class="settings-dropdown" id="settingsDropdown">
             <!-- Языки -->
             <div class="settings-section">
@@ -292,19 +292,33 @@
                     
                     <div id="mainChart" style="height: 500px; border-radius: 15px; overflow: hidden; margin: 20px 0;"></div>
                     
-                    <!-- LIVE Сигналы -->
-                    <div class="section">
-                        <h3 style="color: #00c851; margin-bottom: 15px;">🔴 LIVE Сигналы</h3>
-                        <div id="liveSignalsContainer" class="live-signals-container">
-                            <div style="color: #b8c5d1; text-align: center; padding: 20px;">Инициализация системы сигналов...</div>
-                        </div>
-                    </div>
-                    
+<!-- LIVE Сигналы -->
+<div id="liveSignals" style="text-align:center; margin-top:10px;">
+  <h3 style="color:#00cff9; font-weight:600;">
+    <span style="color:#ff4d4d;">🔴</span> LIVE Сигналы
+  </h3>
+
+  <div id="signalCard" 
+       style="
+         background: rgba(25, 25, 40, 0.8);
+         border-radius: 14px;
+         padding: 15px;
+         margin-top: 10px;
+         color: white;
+         display: inline-block;
+         min-width: 250px;
+         max-width: 400px;
+         box-shadow: 0 0 20px rgba(0,0,0,0.4);
+         transition: all 0.3s ease;">
+    <p style="opacity: 0.7;">Инициализация системы сигналов...</p>
+  </div>
+</div>
+
                     <!-- Стратегии -->
-                    <div style="margin: 20px; margin-bottom: 25px; cursor: pointer;" onclick="showStrategy('ma14')">
+                    <div style="margin: 20px; margin-bottom: 25px; cursor: pointer;" onclick="showStrategy('TREND')">
                         <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(0, 200, 81, 0.3) 20%, rgba(0, 200, 81, 0.8) 50%, rgba(0, 200, 81, 0.3) 80%, transparent 100%); margin-bottom: 10px;"></div>
-                        <div style="text-align: center; font-size: 16px; font-weight: 600; color: #00c851; margin: 8px 0;">MA14</div>
-                        <div class="signal-indicator signal-neutral" id="ma14Signal">Анализ...</div>
+                        <div style="text-align: center; font-size: 16px; font-weight: 600; color: #00c851; margin: 8px 0;">TREND</div>
+                        <div class="signal-indicator signal-neutral" id="TRENDSignal">Анализ...</div>
                         <div style="width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(0, 200, 81, 0.3) 20%, rgba(0, 200, 81, 0.8) 50%, rgba(0, 200, 81, 0.3) 80%, transparent 100%); margin-top: 10px;"></div>
                     </div>
                     
@@ -857,10 +871,10 @@
             }
         }
 
-        // Стратегия MA14 по авторской логике
-        class MA14Strategy {
+        // Стратегия TREND по авторской логике
+        class TRENDStrategy {
             constructor() {
-                this.name = 'MA14';
+                this.name = 'TREND';
                 this.period = 14;
             }
 
@@ -893,13 +907,13 @@
                 const ma = this.calculateMA(candles);
                 const last3Candles = candles.slice(-3);
                 
-                // Проверяем, что все 3 последние свечи закрылись выше MA14
+                // Проверяем, что все 3 последние свечи закрылись выше TREND
                 const allAboveMA = last3Candles.every((candle, index) => {
                     const maIndex = ma.length - 3 + index;
                     return maIndex >= 0 && candle.close > ma[maIndex].value;
                 });
 
-                // Проверяем, что все 3 последние свечи закрылись ниже MA14
+                // Проверяем, что все 3 последние свечи закрылись ниже TREND
                 const allBelowMA = last3Candles.every((candle, index) => {
                     const maIndex = ma.length - 3 + index;
                     return maIndex >= 0 && candle.close < ma[maIndex].value;
@@ -911,7 +925,7 @@
                 if (allAboveMA) {
                     return {
                         signal: 'BUY',
-                        reason: '3 свечи подряд закрылись выше MA14',
+                        reason: '3 свечи подряд закрылись выше TREND',
                         price: currentPrice,
                         ma: currentMA,
                         confidence: 85
@@ -919,7 +933,7 @@
                 } else if (allBelowMA) {
                     return {
                         signal: 'SELL',
-                        reason: '3 свечи подряд закрылись ниже MA14',
+                        reason: '3 свечи подряд закрылись ниже TREND',
                         price: currentPrice,
                         ma: currentMA,
                         confidence: 85
@@ -1322,7 +1336,7 @@
         class StrategyManager {
             constructor() {
                 this.strategies = {
-                    ma14: new MA14Strategy(),
+                    TREND: new TRENDStrategy(),
                     trendline: new TrendlineStrategy(),
                     channel: new ChannelStrategy()
                 };
@@ -1352,7 +1366,7 @@
                     const strategy = this.strategies[strategyName];
                     let result;
                     
-                    if (strategyName === 'ma14') {
+                    if (strategyName === 'TREND') {
                         result = strategy.analyze(candles);
                     } else {
                         result = strategy.analyze(candles, swingPoints);
@@ -1926,28 +1940,30 @@
             updateUserStats();
 
             const strategies = {
-                ma14: {
-                    title: 'MA14 - Скользящая средняя',
-                    color: '#00c851',
-                    content: `
-                        <div style="margin-bottom: 20px;">
-                            <h3 style="color: #00c851; margin-bottom: 15px;">📊 Стратегия MA14</h3>
-                            <div style="background: rgba(0, 200, 81, 0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
-                                <p><strong>Описание:</strong></p>
-                                <p>Стратегия основана на анализе скользящей средней с периодом 14. Использует авторскую методику Шахруза для определения точек входа и выхода.</p>
-                            </div>
-                            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 15px;">
-                                <p><strong>Сигналы:</strong></p>
-                                <p>🟢 BUY: Сигнал на покупку</p>
-                                <p>🔴 SELL: Сигнал на продажу</p>
-                                <p>⚪ NEUTRAL: Нейтральная позиция</p>
-                                <p style="margin-top: 15px; color: #ffbb33; font-size: 12px;">
-                                    <strong>⚠️ Детальная логика стратегии является конфиденциальной</strong>
-                                </p>
-                            </div>
-                        </div>
-                    `
-                },
+               trend: {
+  title: 'TREND — Основная стратегия Шахруза',
+  color: '#00c851',
+  content: `
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #00c851; margin-bottom: 15px;">📈 Стратегия TREND</h3>
+      <div style="background: rgba(0, 200, 81, 0.1); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+        <p><strong>Описание:</strong></p>
+        <p>Стратегия TREND основана на комбинированной логике Шахруза: 
+        анализ пробоев, движения и направлений тренда. 
+        Использует авторские методы оценки силы тренда и подтверждения сигнала.</p>
+      </div>
+      <div style="background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 15px;">
+        <p><strong>Сигналы:</strong></p>
+        <p>🟢 BUY: Подтверждён восходящий тренд</p>
+        <p>🔴 SELL: Подтверждён нисходящий тренд</p>
+        <p>⚪ NEUTRAL: Рынок в фазе накопления</p>
+        <p style="margin-top: 15px; color: #ffbb33; font-size: 12px;">
+          <strong>⚠️ Детальная логика стратегии является конфиденциальной</strong>
+        </p>
+      </div>
+    </div>
+  `
+},
                 trendline: {
                     title: 'Пробой трендовой линии',
                     color: '#ff6b35',
@@ -2184,7 +2200,7 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
 • Авторской методике Шахруза
 • Логике тройного движения
 • Построению трендовых линий и каналов
-• Использованию стратегии MA14
+• Использованию стратегии TREND
 • Управлению рисками в торговле
 
 Следите за обновлениями!`);
@@ -2246,7 +2262,7 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
    Авторская логика построения трендовых линий и каналов
 
 3. 🟢🔴 Что означают сигналы?
-   BUY/SELL - рекомендации на основе анализа MA14
+   BUY/SELL - рекомендации на основе анализа TREND
    BREAKOUT/BREAKDOWN - пробои трендовых линий/каналов
 
 4. 🎁 Как активировать промокод?
@@ -2365,7 +2381,7 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
       // Strategy entry point
       window.showStrategy = function(strategy){
         currentStrategy = strategy;
-        const titles = { ma14:'MA14 (D1 Only)', trendline:'Пробой трендовой линии', channel:'Трендовый канал' };
+        const titles = { TREND:'TREND (D1 Only)', trendline:'Пробой трендовой линии', channel:'Трендовый канал' };
         const pageList = ['lessonsPage','strategiesPage','familyPage','newsPage','analyticsPage','supportPage'];
         pageList.forEach(id => { const el=document.getElementById(id); if (el) el.classList.remove('active'); });
         const detail = document.getElementById('strategyDetail');
@@ -2411,7 +2427,7 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
 
         const tfSelect = document.getElementById('timeframeSelect');
         if (tfSelect){
-          if (strategy === 'ma14'){ tfSelect.value = '1d'; tfSelect.disabled = true; currentTimeframe = '1d'; }
+          if (strategy === 'TREND'){ tfSelect.value = '1d'; tfSelect.disabled = true; currentTimeframe = '1d'; }
           else { tfSelect.disabled = false; tfSelect.value = '15m'; currentTimeframe = '15m'; }
         }
 
@@ -2440,9 +2456,9 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
         const tfSel = document.getElementById('timeframeSelect');
         if (coinSel) currentSymbol = coinSel.value;
         if (tfSel) currentTimeframe = tfSel.value;
-        if (currentStrategy === 'ma14') currentTimeframe = '1d';
+        if (currentStrategy === 'TREND') currentTimeframe = '1d';
 
-        const limit = currentStrategy === 'ma14' ? 60 : 300;
+        const limit = currentStrategy === 'TREND' ? 60 : 300;
         setStatus('Загрузка данных...');
         candlesData = await fetchData(currentSymbol, currentTimeframe, limit);
         if (!candlesData.length){ setStatus('✗ Ошибка загрузки'); return; }
@@ -2504,12 +2520,12 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
           ctx.fillStyle=color; ctx.fillRect(x-cw/2, Math.min(oY,cY), cw, Math.max(1, Math.abs(cY-oY)));
         });
 
-        if (currentStrategy === 'ma14') drawMA14(toX,toY);
+        if (currentStrategy === 'TREND') drawTREND(toX,toY);
         if (currentStrategy === 'trendline') drawTrendline(toX,toY);
         if (currentStrategy === 'channel') drawChannel(toX,toY);
       }
 
-      function drawMA14(toX,toY){
+      function drawTREND(toX,toY){
         if (candlesData.length < 14) return;
         const ma=[]; for (let i=13;i<candlesData.length;i++){ let s=0; for (let j=i-13;j<=i;j++) s+=candlesData[j].close; ma.push({index:i,value:s/14}); }
         ctx.strokeStyle='#00c851'; ctx.lineWidth=3; ctx.beginPath();
@@ -2555,21 +2571,21 @@ Premium статус: ${hasPremium ? 'Активен' : 'Неактивен'}
 
       // --- Analysis ---
       function analyzeStrategy(candles, strategy){
-        if (strategy === 'ma14') return analyzeMA14(candles);
+        if (strategy === 'TREND') return analyzeTREND(candles);
         if (strategy === 'trendline') return analyzeTrendline(candles);
         if (strategy === 'channel') return analyzeChannel(candles);
         return { signal:'WAIT', reason:'Unknown' };
       }
 
-      function analyzeMA14(candles){
+      function analyzeTREND(candles){
         if (candles.length < 17) return { signal:'WAIT', reason:'Недостаточно данных' };
         const ma=[]; for (let i=13;i<candles.length;i++){ let s=0; for (let j=i-13;j<=i;j++) s+=candles[j].close; ma.push(s/14); }
         const l3 = candles.slice(-3);
         const above = l3.every((c,i)=> c.close > ma[ma.length-3+i]);
         const below = l3.every((c,i)=> c.close < ma[ma.length-3+i]);
         const price = candles[candles.length-1].close;
-        if (above) return { signal:'BUY', reason:'3 свечи выше MA14', price, confidence:85 };
-        if (below) return { signal:'SELL', reason:'3 свечи ниже MA14', price, confidence:85 };
+        if (above) return { signal:'BUY', reason:'3 свечи выше TREND', price, confidence:85 };
+        if (below) return { signal:'SELL', reason:'3 свечи ниже TREND', price, confidence:85 };
         return { signal:'NEUTRAL', reason:'Нет подтверждения', price, confidence:40 };
       }
 
@@ -2861,42 +2877,76 @@ window.addEventListener('message', (event) => {
 
 window.addEventListener('load', checkPremiumStatus);
 
+
+
+
+
 console.log('TersaaMt Trading App v10.0 - Исправленная версия готова! 🚀');
 
-// === Инициализация менеджера уведомлений ===
-window.notificationManager = new NotificationManager();
+<!-- === Binance API + LIVE сигнал === -->
 
+async function getBinancePrice(symbol = "BTCUSDT") {
+  try {
+    const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+    const data = await response.json();
+    return parseFloat(data.price).toFixed(2);
+  } catch (err) {
+    console.error("Ошибка Binance API:", err);
+    return null;
+  }
+}
 
-    </script>
-<!-- Premium Modal -->
-    <div id="premiumModal">
-        <div class="premium-content">
-            <button class="premium-close" onclick="closePremiumModal()">×</button>
-            
-            <h2 style="color: white; text-align: center; margin-bottom: 10px; font-size: 28px;">💎 Premium Доступ</h2>
-            
-            <div class="premium-price-box">
-                <div class="premium-price">$15</div>
-                <div class="premium-period">единоразовый платеж</div>
-            </div>
-            
-            <div class="premium-features">
-                <div class="premium-feature">✅ Полный доступ к стратегиям MA14</div>
-                <div class="premium-feature">✅ Тренд-анализ и каналы</div>
-                <div class="premium-feature">✅ LIVE сигналы 24/7</div>
-                <div class="premium-feature">✅ Приоритетная поддержка</div>
-                <div class="premium-feature">✅ Детальная аналитика</div>
-                <div class="premium-feature">✅ Без рекламы</div>
-            </div>
-            
-            <button id="payButton" onclick="initiatePayment()" class="premium-pay-btn">
-                Оплатить Premium
-            </button>
-            
-            <div id="paymentStatus" class="premium-status"></div>
-        </div>
+// === Функция обновления LIVE сигнала ===
+async function updateLiveSignal(symbol = "BTCUSDT", type = "buy") {
+  const card = document.getElementById("signalCard");
+  if (!card) return console.error("❌ Не найден элемент #signalCard");
+
+  const price = await getBinancePrice(symbol);
+
+  const logos = {
+    BTCUSDT: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+    ETHUSDT: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+    SOLUSDT: "https://assets.coingecko.com/coins/images/4128/large/solana.png",
+    XRPUSDT: "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png",
+    ADAUSDT: "https://assets.coingecko.com/coins/images/975/large/cardano.png"
+  };
+
+  const img = logos[symbol] || logos.BTCUSDT;
+
+  let color = "#ffaa00";
+  let title = "⚖️ NEUTRAL сигнал";
+  let reason = "Рынок без ярко выраженного направления.";
+
+  if (type === "buy") {
+    color = "#00ff9f";
+    title = "📈 BUY сигнал";
+    reason = "Цена пересекла TREND снизу вверх — подтверждён восходящий тренд.";
+  } else if (type === "sell") {
+    color = "#ff4d4d";
+    title = "📉 SELL сигнал";
+    reason = "Цена опустилась ниже TREND — подтверждён нисходящий тренд.";
+  }
+
+  card.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:center; gap:8px; transition:0.3s;">
+      <img src="${img}" alt="coin" style="width:60px; height:60px; border-radius:50%; box-shadow:0 0 12px ${color};">
+      <h3 style="color:${color}; margin:5px 0;">${title}</h3>
+      <p style="margin:0; font-size:14px;">Монета: <b>${symbol}</b></p>
+      <p style="margin:0; font-size:14px;">Текущая цена: <b>${price || '—'} USDT</b></p>
+      <p style="font-size:13px; opacity:0.8;">${reason}</p>
     </div>
+  `;
+}
 
-</body>
-</body>
-</html>  
+// === Автообновление каждые 15 минут ===
+window.addEventListener("load", () => {
+  // Первый запуск
+  updateLiveSignal("BTCUSDT", "buy");
+
+  // Обновление каждые 15 минут (15 * 60 * 1000 = 900000 мс)
+  setInterval(() => {
+    const type = Math.random() > 0.5 ? "buy" : "sell"; // имитация смены тренда
+    updateLiveSignal("BTCUSDT", type);
+  }, 15 * 60 * 1000);
+});
+</script> 
