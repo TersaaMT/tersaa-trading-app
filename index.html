@@ -8,6 +8,23 @@
     <script src="https://s3.tradingview.com/tv.js"></script>
     <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
+    <!-- Service Worker для Push-уведомлений -->
+    <script>
+        // Регистрация Service Worker
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker зарегистрирован:', registration);
+                    })
+                    .catch(error => {
+                        console.error('❌ Ошибка регистрации Service Worker:', error);
+                    });
+            });
+        } else {
+            console.log('⚠️ Браузер не поддерживает Service Worker или Push API');
+        }
+    </script>
     <script type="module" src="js/firebase.js"></script>
     <link rel="stylesheet" href="css/styles.css">
 
@@ -71,6 +88,20 @@
                     <span style="margin-right: 10px;">🇯🇵</span> Japanese
                 </div>
             </div>
+
+<!-- Уведомления -->
+<div class="settings-section">
+    <div class="settings-title">
+        🔔 Уведомления
+    </div>
+    <div class="settings-option" onclick="toggleNotifications()">
+        <span style="margin-right: 10px;">🔔</span> Включить Push-уведомления
+    </div>
+    <div class="settings-option" onclick="testNotification()">
+        <span style="margin-right: 10px;">🧪</span> Тестовое уведомление
+    </div>
+</div>
+
 <!-- Premium Доступ -->
 <div class="settings-section">
     <div class="settings-title">
@@ -572,7 +603,7 @@
                 this.isConnected = false;
                 this.tickerWs = null;
                 this.swingPoints = [];
-            }
+            } 
 
             async loadHistoricalData(symbol = this.currentSymbol, limit = 500) {
                 try {
@@ -727,6 +758,102 @@
                 this.candles = [];
                 this.swingPoints = [];
                 this.loadHistoricalData();
+            }
+        }
+
+// Менеджер Push-уведомлений
+        class NotificationManager {
+            constructor() {
+                this.permission = 'default';
+                this.checkPermission();
+            }
+
+            async checkPermission() {
+                if ('Notification' in window) {
+                    this.permission = Notification.permission;
+                }
+            }
+
+            async requestPermission() {
+                if (!('Notification' in window)) {
+                    console.log('Браузер не поддерживает уведомления');
+                    return false;
+                }
+
+                if (Notification.permission === 'granted') {
+                    return true;
+                }
+
+                if (Notification.permission !== 'denied') {
+                    const permission = await Notification.requestPermission();
+                    this.permission = permission;
+                    return permission === 'granted';
+                }
+
+                return false;
+            }
+
+            async showNotification(signal) {
+                const hasPermission = await this.requestPermission();
+                if (!hasPermission) {
+                    console.log('Нет разрешения на уведомления');
+                    return;
+                }
+
+                const signalEmoji = {
+                    'BUY': '🟢',
+                    'SELL': '🔴',
+                    'NEUTRAL': '⚪',
+                    'HOLD': '🟡',
+                    'TOUCH': '🔵',
+                    'BREAKOUT': '🚀',
+                    'BREAKDOWN': '📉'
+                };
+
+                const emoji = signalEmoji[signal.signal] || '📊';
+                const title = `${emoji} ${signal.symbol} - ${signal.signal}`;
+                const body = `${signal.strategy.toUpperCase()}: ${signal.reason}\nЦена: $${signal.price?.toFixed(2) || 'N/A'}\nУверенность: ${signal.confidence}%`;
+
+                if ('serviceWorker' in navigator) {
+                    try {
+                        const registration = await navigator.serviceWorker.ready;
+                        await registration.showNotification(title, {
+                            body: body,
+                            icon: '/icon-192.png',
+                            badge: '/badge-72.png',
+                            vibrate: [200, 100, 200],
+                            tag: `signal-${signal.id}`,
+                            requireInteraction: false,
+                            data: {
+                                url: '/',
+                                signal: signal
+                            }
+                        });
+                        console.log('✅ Уведомление отправлено:', signal);
+                    } catch (error) {
+                        console.error('Ошибка отправки уведомления:', error);
+                    }
+                } else {
+                    new Notification(title, {
+                        body: body,
+                        icon: '/icon-192.png',
+                        vibrate: [200, 100, 200]
+                    });
+                }
+            }
+
+            async showTestNotification() {
+                const testSignal = {
+                    id: Date.now(),
+                    symbol: 'BTCUSDT',
+                    signal: 'BUY',
+                    strategy: 'test',
+                    reason: 'Тестовое уведомление',
+                    price: 50000,
+                    confidence: 85
+                };
+                
+                await this.showNotification(testSignal);
             }
         }
 
@@ -1274,6 +1401,11 @@
                 this.signals = this.signals.slice(0, 20); // Храним только последние 20 сигналов
                 this.updateLiveSignalsUI();
                 
+// 🔔 ОТПРАВКА PUSH-УВЕДОМЛЕНИЯ
+                if (window.notificationManager) {
+                    window.notificationManager.showNotification(signal);
+                }
+
                 // Сохраняем в Firebase если доступен
                 if (window.db && window.firestoreUtils) {
                     window.firestoreUtils.addDoc(
@@ -1674,6 +1806,19 @@
             strategyManager = new StrategyManager();
             loadRealNews();
         }
+
+// Инициализация уведомлений
+            window.notificationManager = new NotificationManager();
+            
+            // Запрашиваем разрешение на уведомления при первом запуске
+            setTimeout(async () => {
+                const hasPermission = await window.notificationManager.requestPermission();
+                if (hasPermission) {
+                    console.log('✅ Уведомления разрешены');
+                } else {
+                    console.log('⚠️ Уведомления не разрешены');
+                }
+            }, 2000);
 
         // Обработка формы авторизации
         document.getElementById('authForm').addEventListener('submit', async (e) => {
@@ -2717,6 +2862,11 @@ window.addEventListener('message', (event) => {
 window.addEventListener('load', checkPremiumStatus);
 
 console.log('TersaaMt Trading App v10.0 - Исправленная версия готова! 🚀');
+
+// === Инициализация менеджера уведомлений ===
+window.notificationManager = new NotificationManager();
+
+
     </script>
 <!-- Premium Modal -->
     <div id="premiumModal">
